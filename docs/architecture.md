@@ -24,6 +24,12 @@ Depth is action count, not shortest-path distance. Walks may revisit states or t
 
 The runner treats the agent-step budget as a hard cap: reaching it without solving produces truncation. An upstream truncation is preserved. Policy actions are checked as integer indices and then validated by the adapter.
 
+## Random-policy baseline
+
+`zeromethod.experiments.random_baseline` provides a reproducible uniform-random policy and multi-episode evaluator. The policy samples uniformly from all 18 actions; it deliberately does not suppress inverse moves, making this a simple unoptimized baseline. Each episode receives independent deterministic scramble and policy seeds derived from a master seed. The evaluator reports solve rate, failure/truncation counts, mean agent steps, mean successful solve steps, reward, policy-call count, measured policy latency, and total elapsed time.
+
+The benchmark requires positive scramble depth so solved resets are not counted as policy successes. Run it with `python -m zeromethod.experiments.random_baseline --episodes 100 --depth 10 --max-agent-steps 100 --seed 42`. It emits a JSON report. Timing values are observational and are not expected to be bit-for-bit reproducible; episode outcomes and action streams are reproducible for a fixed environment version and configuration.
+
 ## Adapter and observation contract
 
 GymRubiksCubeAdapter normalizes reset to (observation, info), step to StepResult, and close to None. Observations are immutable tuples of 54 integer stickers, values 0..5, exactly nine of each color.
