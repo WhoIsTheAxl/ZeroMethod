@@ -17,6 +17,12 @@ The agent must not receive:
 
 Environment code may retain internal state needed to execute transitions, but the training interface must not expose hidden scramble metadata. The seeded random-walk generator returns only the resulting immutable observation; it does not attach the generated action sequence.
 
+## State legality gate
+
+Before a generated observation is accepted into a training or evaluation dataset, run `validate_cube_state`. It checks color counts, center orientation, corner and edge piece uniqueness, orientation sums, and permutation parity. The upstream integration test exercises the validator against long random walks containing all action families, including middle-slice turns.
+
+The validator canonicalizes the 24 possible rigid cube orientations because upstream middle-slice moves rotate center stickers. It does not certify that a state was sampled uniformly or that a scramble depth equals shortest solution distance.
+
 ## Curriculum experiments
 
 A staged curriculum may begin with shallow states and increase difficulty. Scramble depth is only a rough difficulty proxy: different sequences can cancel, revisit states, or produce the same state.
@@ -27,7 +33,7 @@ Training curriculum examples:
 3. three-move states
 4. progressively deeper states
 
-The generator accepts an explicit seed. Recreate it with the same seed to reproduce its sequence of generated observations. Use derive_split_seed(master_seed, split_name) to derive stable, distinct seeds for training, validation, and evaluation. Record the master seed, split name, derived seed, and depth schedule for every experiment.
+The generator accepts an explicit seed. Recreate it with the same seed to reproduce its sequence of generated observations. Use `derive_split_seed(master_seed, split_name)` to derive stable, distinct seeds for training, validation, and evaluation. Record the master seed, split name, derived seed, and depth schedule for every experiment.
 
 The generator avoids immediately selecting the inverse of the previous action. This reduces trivial two-step cancellations but does not make random walks uniform or guarantee a particular state's shortest-path distance.
 
@@ -69,4 +75,4 @@ The upstream GymRubiksCube environment uses 18 actions, including middle slices.
 
 The current upstream reward is sparse: +1 for solved and 0 otherwise. Any future reward shaping must be documented and reviewed to ensure it does not encode a human solving method or leak solution information.
 
-The current state generator produces random walks from the solved state. It is a reproducible generator for controlled experiments, not an independently verified uniform sampler over legal cube states. Corner/edge orientation and permutation invariants still need independent validation before this generator is used for benchmark claims.
+The current state generator produces random walks from the solved state. It is a reproducible generator for controlled experiments, not a uniform sampler over legal cube states.
