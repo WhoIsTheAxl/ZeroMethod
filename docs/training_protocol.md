@@ -65,3 +65,24 @@ Keep training, validation, and final evaluation states separate. Report solve su
 ## Current limitations
 
 V1 and V2 are random reference policies; V3 is a one-step model-based heuristic. No learned agent, training loop, or trained model exists yet. The next milestone is the first trainable agent and a reproducible training/evaluation loop. The upstream reward is sparse (+1 solved, otherwise 0). Any reward shaping must be documented and checked for solution-information leakage.
+
+
+## First DQN training protocol
+
+The first learned agent is a standard sparse-reward DQN. The state encoder expands each sticker color into a six-element one-hot vector, producing 324 features. The MLP emits one Q-value for each of the 18 environment actions. The agent uses replay sampling, a target network, epsilon-greedy exploration, Huber loss, and gradient clipping.
+
+Run from the repository root after installing the pinned upstream environment dependencies and PyTorch:
+
+```bash
+PYTHONPATH=third_party/GymRubiksCube python -m zeromethod.training.dqn \
+  --episodes 10000 --start-depth 1 --max-depth 3 \
+  --episodes-per-depth 2000 --max-agent-steps 20 \
+  --evaluation-interval 500 --evaluation-episodes 100 \
+  --seed 42 --checkpoint artifacts/dqn_v1.pt
+```
+
+The default curriculum increases random-walk depth from 1 to 3 in 2,000-episode stages. Epsilon decreases linearly from 1.0 to 0.05 over 50,000 agent transitions. Replay learning starts after 1,000 transitions; minibatches contain 64 transitions. The target network synchronizes every 1,000 optimizer updates. These are initial experimental hyperparameters, not tuned values.
+
+The reward is the upstream sparse reward (+1 on solved, otherwise 0). No intermediate sticker-count reward is used. A transition is marked done when the episode terminates or reaches its configured agent-step boundary. Evaluation uses a distinct seed namespace and greedy actions; evaluation experiences are not added to replay.
+
+The initial implementation trains on one GPU even when multiple GPUs are visible. The checkpoint stores model and optimizer state plus experiment metadata, but does not yet preserve replay-buffer contents or random-generator states; it is therefore a model artifact, not an exact training-resume checkpoint. Record the source commit, Kaggle runtime, PyTorch/CUDA versions, and full CLI arguments with benchmark results.
