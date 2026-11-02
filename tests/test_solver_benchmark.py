@@ -10,6 +10,7 @@ from zeromethod.evaluation.solver_benchmark import (
 
 SOLVED = tuple(color for color in range(6) for _ in range(9))
 SCRAMBLED = SOLVED[1:] + SOLVED[:1]
+SCRAMBLED_AGAIN = SCRAMBLED[1:] + SCRAMBLED[:1]
 
 
 class ActionSpace:
@@ -32,6 +33,10 @@ class FakeEnvironment:
             self.state = SCRAMBLED
         elif self.solve_on_action:
             self.state = SOLVED
+        else:
+            self.state = (
+                SCRAMBLED_AGAIN if self.state == SCRAMBLED else SCRAMBLED
+            )
         return self.state, (1.0 if self.state == SOLVED else 0.0), self.state == SOLVED, {}
 
     def isSolved(self):
@@ -64,6 +69,10 @@ class TestSolverBenchmark(unittest.TestCase):
         self.assertGreaterEqual(report.total_runtime_ns, report.solving_time_ns)
         self.assertEqual(report.moves[0].step, 1)
         payload = report.to_dict()
+        self.assertEqual(payload["stop_reason"], "solved")
+        compact = report.to_compact_dict()
+        self.assertNotIn("states", compact)
+        self.assertEqual(compact["moves"][0]["action_name"], "U_CLOCKWISE")
         self.assertEqual(payload["moves"][0]["action_name"], "U_CLOCKWISE")
         self.assertEqual(len(payload["states"]), 2)
         json.loads(report.to_json())
@@ -76,8 +85,23 @@ class TestSolverBenchmark(unittest.TestCase):
         )
         self.assertFalse(report.success)
         self.assertFalse(report.final_state_verified)
-        self.assertEqual(report.agent_steps, 3)
-        self.assertEqual(len(report.states), 4)
+        self.assertEqual(report.agent_steps, 2)
+        self.assertEqual(len(report.states), 3)
+        self.assertEqual(report.stop_reason, "cycle_detected")
+        env.close()
+
+    def test_detects_disagreement_between_observation_and_environment(self):
+        class LyingEnvironment(FakeEnvironment):
+            def isSolved(self):
+                return False
+
+        env = GymRubiksCubeAdapter(LyingEnvironment())
+        benchmark = SolverBenchmark(env)
+        with self.assertRaisesRegex(RuntimeError, "solved-state disagreement"):
+            benchmark.run(
+                lambda observation: 0,
+                depth=0, seed=7, max_agent_steps=3,
+            )
         env.close()
 
     def test_solved_initial_state_uses_zero_moves(self):
