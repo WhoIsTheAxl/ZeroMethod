@@ -6,6 +6,7 @@ actions, and every observed state are retained in a JSON-serializable report.
 """
 
 from dataclasses import asdict, dataclass
+import argparse
 import json
 from operator import index
 from time import perf_counter_ns
@@ -204,7 +205,9 @@ class SolverBenchmark:
             if result.terminated or result.truncated:
                 break
 
-        solving_time_ns = perf_counter_ns() - solving_start
+        solving_time_ns = (
+            perf_counter_ns() - solving_start if recorder.moves else 0
+        )
         total_runtime_ns = perf_counter_ns() - runtime_start
         # Verify against the environment, not just the reward or policy output.
         final_state_verified = bool(self.env.is_solved())
@@ -230,3 +233,43 @@ class SolverBenchmark:
             moves=moves,
             states=recorder.states,
         )
+
+
+def main(argv=None):
+    """Load a DQN checkpoint and benchmark one reproducible solve attempt."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--checkpoint", required=True)
+    parser.add_argument("--depth", type=int, default=3)
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--max-agent-steps", type=int, default=100)
+    parser.add_argument("--device", default=None)
+    args = parser.parse_args(argv)
+
+    # Keep PyTorch optional for users who only need the recorder/report types.
+    import torch
+    from zeromethod.agents.dqn import DQNAgent
+    from zeromethod.environment.factory import make_environment
+
+    agent = DQNAgent(seed=args.seed, device=args.device)
+    checkpoint = torch.load(
+        args.checkpoint, map_location=agent.device, weights_only=False
+    )
+    agent.online_network.load_state_dict(checkpoint["online_network"])
+    agent.online_network.eval()
+
+    env = make_environment(max_steps=None)
+    try:
+        report = SolverBenchmark(env).run(
+            lambda observation: agent.act(observation, epsilon=0.0),
+            depth=args.depth,
+            seed=args.seed,
+            max_agent_steps=args.max_agent_steps,
+            policy_name="DQN",
+        )
+        print(report.to_json())
+    finally:
+        env.close()
+
+
+if __name__ == "__main__":
+    main()
