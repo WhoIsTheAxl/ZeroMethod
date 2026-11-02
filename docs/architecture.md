@@ -48,7 +48,7 @@ The upstream environment uses the legacy Gym API, where `done` combines successf
 
 The upstream environment allows middle-slice turns, which move center stickers. Therefore the validator first canonicalizes the observed center orientation using one of the 24 proper cube rotations, then checks the fixed-center cubie invariants. It rejects center arrangements that cannot be explained by a rigid cube rotation.
 
-This is a fixed-frame physical-state validator, not a solver and not a uniform state sampler. The upstream integration test runs a long random action walk, including middle-slice moves, through the validator.
+This is a fixed-frame physical-state validator, not a solver and not a uniform state sampler. **Known blocker:** the current 1,000-action upstream walk exposes that the validator's center-frame normalization is insufficient for states reached through the upstream middle-slice actions. CI currently fails on reachable states late in that walk. Do not use this validator as a dataset gate until its invariants are reconciled with the environment's movable-center representation.
 
 ## State generation boundary
 
@@ -68,7 +68,7 @@ ZeroMethod now exposes a project-owned `Action` enum with stable values matching
 
 ## Dependency boundaries
 
-The adapter, state generator, legality validator, and their unit tests use only the Python standard library. The upstream integration tests require the legacy environment's pinned stack. This lets contributors test project-owned interface, state-generation, and cubie-invariant logic without installing the full upstream dependency set.
+The adapter, action interface, state generator, legality validator, and their unit tests use only the Python standard library. The upstream integration tests require the legacy environment's pinned stack. The core action-interface tests pass in CI; the upstream random-walk legality integration currently fails and is a blocker before dataset generation or training.
 
 ## Next architectural milestones
 
