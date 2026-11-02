@@ -106,12 +106,18 @@ and 0 otherwise. It terminates on a solved state or when the optional
 `max_steps` limit is reached. The reward does not distinguish shorter from
 longer unsolved paths.
 
-## Open questions
+## Project decision and remaining verification
 
-1. Decide whether ZeroMethod keeps all 18 actions or introduces a separately
-   validated outer-face-only action mode.
-2. Independently verify the clockwise / counter-clockwise labels against a
-   fixed geometric viewing convention before exposing Singmaster strings in
-   code or experiment logs.
+ZeroMethod will retain all 18 upstream actions as its current canonical action
+set. The project-owned `Action` enum preserves the exact upstream indices and
+directional descriptions, and `inverse_action()` provides the inverse mapping.
+This keeps policy outputs directly compatible with the environment.
+
+Still to verify:
+
+1. Compare every upstream sticker permutation against an independently
+   generated geometric layer rotation, including the sign of each turn.
+2. Only after that comparison, optionally expose standard Singmaster notation
+   as a secondary display format.
 3. Benchmark the cost and learning impact of middle-slice actions rather than
    assuming that a larger action space is automatically beneficial.
