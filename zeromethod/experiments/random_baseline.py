@@ -55,7 +55,18 @@ class BaselineReport:
     def to_dict(self):
         """Return a JSON-serializable representation."""
         data = asdict(self)
-        data["episode_results"] = [asdict(result) for result in self.episode_results]
+        # Keep reports compact; final sticker arrays are available in the
+        # in-memory EpisodeResult objects but are not benchmark metrics.
+        data["episode_results"] = [
+            {
+                "total_reward": result.total_reward,
+                "agent_steps": result.agent_steps,
+                "terminated": result.terminated,
+                "truncated": result.truncated,
+                "success": result.success,
+            }
+            for result in self.episode_results
+        ]
         return data
 
 
