@@ -7,7 +7,7 @@
 ZeroMethod aims to develop a cube-solving agent that learns the mechanics of the cube from its environment rather than being given a human solving method such as CFOP or Roux. Speed is a major goal, but solving ability and generalization come first.
 
 > **Project status: Environment infrastructure.**  
-> The repository includes a dependency-free environment adapter, a seeded random-walk state generator, unit tests, and GitHub Actions CI. The adapter and upstream integration suites previously passed; the new state-generation suite is now included in CI and is awaiting its run. No trained agent or solver is available yet.
+> The repository includes a dependency-free environment adapter, a seeded random-walk state generator, unit tests, and GitHub Actions CI. The state-generation suite has been added to CI; check the Actions page for the latest run result. No trained agent or solver is available yet.
 
 ## Project goals
 
