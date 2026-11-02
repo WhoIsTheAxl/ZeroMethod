@@ -91,6 +91,10 @@ class GymRubiksCubeAdapter:
             info=dict(info or {}),
         )
 
+    def is_solved(self) -> bool:
+        """Return whether the wrapped environment currently reports solved."""
+        return bool(self.env.isSolved())
+
     def close(self) -> None:
         """Close the wrapped environment when it supports close()."""
         close = getattr(self.env, "close", None)
