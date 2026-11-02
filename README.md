@@ -1,11 +1,13 @@
 # ZeroMethod
 
+[![CI](https://github.com/WhoIsTheAxl/ZeroMethod/actions/workflows/ci.yml/badge.svg)](https://github.com/WhoIsTheAxl/ZeroMethod/actions/workflows/ci.yml)
+
 **An experimental AI project exploring how an agent can learn to solve the Rubik's Cube through interaction.**
 
 ZeroMethod aims to develop a cube-solving agent that learns the mechanics of the cube from its environment rather than being given a human solving method such as CFOP or Roux. Speed is a major goal, but solving ability and generalization come first.
 
 > **Project status: Environment infrastructure.**  
-> The repository now includes a dependency-free adapter, adapter contract tests, and CI. The upstream environment integration suite is being validated. No trained agent or solver is available yet.
+> The repository now includes a dependency-free adapter, adapter contract tests, and CI. Both the adapter suite (8 tests) and upstream environment suite (9 tests) have passed in GitHub Actions. No trained agent or solver is available yet.
 
 ## Project goals
 
