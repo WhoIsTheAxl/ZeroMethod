@@ -2,7 +2,7 @@
 
 ## Current state
 
-ZeroMethod is infrastructure-first. It does not yet contain a trained agent, policy, replay buffer, or training loop.
+ZeroMethod has environment and experiment infrastructure, including two random reference policies. It does not yet contain a trained agent, replay buffer, or training loop.
 
 ## Environment factory
 
@@ -20,15 +20,25 @@ Depth is action count, not shortest-path distance. Walks may revisit states or t
 
 ## Episode runner
 
-`EpisodeRunner` receives an adapter and a callable policy. Its `run` method initializes the seeded starting state, then gives the policy only the current observation. It enforces `max_agent_steps` independently of upstream scramble steps and returns an immutable `EpisodeResult` containing final observation, cumulative reward, agent action count, termination/truncation flags, and success. A solved initial state ends at zero agent actions. The runner does not close the environment; callers control environment lifetime.
+EpisodeRunner receives an adapter and a callable policy. Its run method initializes the seeded starting state, then gives the policy only the current observation. It enforces max_agent_steps independently of upstream scramble steps and returns an immutable EpisodeResult containing final observation, cumulative reward, agent action count, termination/truncation flags, and success. A solved initial state ends at zero agent actions. The runner does not close the environment; callers control environment lifetime.
 
 The runner treats the agent-step budget as a hard cap: reaching it without solving produces truncation. An upstream truncation is preserved. Policy actions are checked as integer indices and then validated by the adapter.
 
-## Random-policy baseline
+## Random-policy baselines
 
-`zeromethod.experiments.random_baseline` provides a reproducible uniform-random policy and multi-episode evaluator. The policy samples uniformly from all 18 actions; it deliberately does not suppress inverse moves, making this a simple unoptimized baseline. Each episode receives independent deterministic scramble and policy seeds derived from a master seed. The evaluator reports solve rate, failure/truncation counts, mean agent steps, mean successful solve steps, reward, policy-call count, measured policy latency, and total elapsed time.
+`zeromethod.experiments.random_baseline` provides v1: a reproducible uniform-random policy that samples all 18 actions, including immediate inverses.
 
-The benchmark requires positive scramble depth so solved resets are not counted as policy successes. Run it with `python -m zeromethod.experiments.random_baseline --episodes 100 --depth 10 --max-agent-steps 100 --seed 42`. It emits a JSON report. Timing values are observational and are not expected to be bit-for-bit reproducible; episode outcomes and action streams are reproducible for a fixed environment version and configuration.
+`zeromethod.experiments.random_baseline_v2` provides v2: the same random strategy, except the immediately preceding action's inverse is excluded. The first choice has 18 possibilities; each later choice has 17. This is a one-step constraint only: it does not inspect the cube state, avoid longer cycles, or plan toward a solution.
+
+Both experiments share the same evaluator and report schema. Each episode gets independent deterministic scramble and policy seeds derived from a master seed. Reports include solve rate, failure/truncation counts, mean agent steps, mean successful solve steps, reward, policy-call count, measured policy latency, and total elapsed time. Timing values are observational and not expected to be bit-for-bit reproducible.
+
+Run v1 with `python -m zeromethod.experiments.random_baseline` and v2 with `python -m zeromethod.experiments.random_baseline_v2`. Both accept `--episodes`, `--depth`, `--max-agent-steps`, and `--seed`.
+
+## Random-policy baseline v2
+
+`NoImmediateInverseRandomPolicy` samples uniformly from all 18 actions on its first decision. On each later decision it excludes the inverse of its immediately preceding action, leaving 17 choices. It does not inspect the cube observation, prevent longer cycles, or plan ahead. The v1 and v2 evaluators share the same report schema and episode evaluator.
+
+Run v2 with `python -m zeromethod.experiments.random_baseline_v2`. It accepts the same `--episodes`, `--depth`, `--max-agent-steps`, and `--seed` arguments as v1.
 
 ## Adapter and observation contract
 
@@ -50,6 +60,6 @@ The adapter, action interface, state generator, episode initializer, and validat
 
 ## Next milestones
 
-1. Add a reproducible episode runner with agent-step limits that begin after initialization.
-2. Measure environment throughput and establish a random-policy baseline.
-3. Define the minimal agent interface and training loop.
+1. Compare both random baselines across multiple seeds and scramble depths.
+2. Define the minimal agent interface and training loop.
+3. Investigate learning algorithms and evaluate generalization.

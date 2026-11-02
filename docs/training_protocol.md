@@ -10,9 +10,9 @@ initialize_episode(env, depth, seed) constructs a starting state by replaying a 
 
 The upstream environment has no public arbitrary-state injection API. ZeroMethod avoids direct mutation of its internal cube state. It resets to solved and executes generated actions through the adapter.
 
-Create environments with make_environment(max_steps=None) when using initialize_episode. Upstream max_steps counts scramble-construction actions too. A future training runner must enforce the agent's own step limit after initialization.
+Create environments with make_environment(max_steps=None) when using initialize_episode. Upstream max_steps counts scramble-construction actions too. The episode runner enforces the agent's own step limit after initialization.
 
-Depth is the number of actions replayed, not shortest-path distance. Immediate inverse pairs are excluded. For a fixed environment version, action mapping, depth, and seed reproduce the same walk. The info mapping intentionally contains no scramble metadata.
+Depth is the number of actions replayed, not shortest-path distance. Immediate inverse pairs are excluded during scramble generation. For a fixed environment version, action mapping, depth, and seed reproduce the same walk. The info mapping intentionally contains no scramble metadata.
 
 ## State integrity and reachability
 
@@ -26,19 +26,37 @@ Random walks are not uniform samples of cube state space, and depth is not guara
 
 ## Episode runner contract
 
-Use `EpisodeRunner(env).run(policy, depth=..., seed=..., max_agent_steps=...)` for bounded episodes. The policy is a callable from the current observation to one action index. It is never called during scramble construction. The returned result records cumulative reward, agent-only step count, final observation, termination/truncation, and success. A zero-step budget is valid and immediately truncates an unsolved starting state. The runner does not own or close the environment.
+Use EpisodeRunner(env).run(policy, depth=..., seed=..., max_agent_steps=...) for bounded episodes. The policy is a callable from the current observation to one action index. It is never called during scramble construction. The returned result records cumulative reward, agent-only step count, final observation, termination/truncation, and success. A zero-step budget is valid and immediately truncates an unsolved starting state. The runner does not own or close the environment.
 
-## Random-policy baseline
+## Random-policy baselines
 
-Run the reference baseline with:
+Baseline v1:
 
 ```bash
 python -m zeromethod.experiments.random_baseline --episodes 100 --depth 10 --max-agent-steps 100 --seed 42
 ```
 
-The policy chooses uniformly among all 18 actions, including immediate inverses. This intentionally weak policy is a reference point, not a proposed solver. Every episode gets independent deterministic seeds for its scramble and policy RNG. The JSON report includes success rate, truncations, mean agent steps, mean successful solve steps, mean reward, policy-call count, mean policy latency, and wall-clock elapsed time.
+V1 samples uniformly from all 18 actions, including immediate inverses.
 
-Use positive scramble depth. Do not interpret a zero-depth solved reset as a policy success. Compare outcome metrics across identical configurations and seeds; timing measurements naturally vary with machine load and should be reported separately. The random walk used for scramble generation is not a uniform sample of the cube state space.
+Baseline v2:
+
+```bash
+python -m zeromethod.experiments.random_baseline_v2 --episodes 100 --depth 10 --max-agent-steps 100 --seed 42
+```
+
+V2 samples randomly but excludes the inverse of its immediately preceding action. It does not inspect the cube observation or plan ahead.
+
+## Final baseline v3
+
+```bash
+python -m zeromethod.experiments.greedy_baseline_v3 --episodes 100 --depth 10 --max-agent-steps 100 --seed 42
+```
+
+V3 is state-aware and performs one-step lookahead. For each decision it applies each of the 18 actions through the public environment adapter, scores the resulting observation by counting correctly positioned stickers (0..54), and undoes the probe with the corresponding inverse action. It verifies that every probe restores the exact input observation. It then selects uniformly among the highest-scoring actions, using a seeded RNG for reproducible tie-breaking.
+
+V3 is a model-based reference policy, not a learned agent. It performs 36 environment transitions per decision (18 probes and 18 reversals), plus the runner's actual selected transition. Probe rewards are intentionally ignored. The heuristic is not a distance metric and can become trapped in local optima or cycles. It is a modest state-aware reference, not a guaranteed solver. It uses the supplied observation and public transition API; it does not inspect private cube state or receive scramble history.
+
+All evaluators use deterministic per-episode scramble and policy seeds and the same JSON report schema. Compare success rate, truncations, mean agent steps, mean successful solve steps, reward, policy-call count, policy latency, and wall-clock elapsed time. Timing is machine-dependent and should be reported separately from outcome metrics.
 
 ## Evaluation and metrics
 
@@ -46,4 +64,4 @@ Keep training, validation, and final evaluation states separate. Report solve su
 
 ## Current limitations
 
-The episode runner and uniform-random reference baseline are implemented. No learned agent, training loop, or trained model exists yet. The upstream reward is sparse (+1 solved, otherwise 0). Any reward shaping must be documented and checked for solution-information leakage.
+V1 and V2 are random reference policies; V3 is a one-step model-based heuristic. No learned agent, training loop, or trained model exists yet. The next milestone is the first trainable agent and a reproducible training/evaluation loop. The upstream reward is sparse (+1 solved, otherwise 0). Any reward shaping must be documented and checked for solution-information leakage.
