@@ -31,20 +31,28 @@ The upstream environment uses the legacy Gym API, where `done` combines successf
 - solved state: `terminated=True`
 - upstream done while unsolved: `truncated=True`
 
+## State generation boundary
+
+`RandomWalkStateGenerator` accepts a solved observation, an injected state-transform function, the action count, an explicit inverse-action mapping, and a seed. It returns only the resulting immutable 54-sticker observation; it does not return or attach the scramble sequence.
+
+`derive_split_seed(master_seed, split)` derives stable split-specific seeds so training, validation, and evaluation generators can be initialized independently and reproduced later.
+
+The generator prevents an action from being followed immediately by its declared inverse. This only removes trivial adjacent cancellations. It does not guarantee shortest-path depth, uniform sampling, or full cube-state legality. Those properties require separate validation.
+
 ## Action-space warning
 
 The upstream environment exposes 18 actions: clockwise and counter-clockwise versions of six outer layers and three middle slices. It is not equivalent to a conventional outer-face-only action set.
 
-Do not compare raw action counts with standard HTM/QTM move counts without defining a conversion. Any benchmark must state its action set and move metric.
+Do not compare raw action counts with standard HTM/QTM move counts without defining a conversion. Any benchmark must state its action set and move metric. The exact action notation and a project-wide metric remain to be finalized after independent inspection of the upstream action definitions.
 
 ## Dependency boundaries
 
-The adapter and its unit tests use only the Python standard library. The upstream integration tests require the legacy environment's pinned stack. This lets contributors test project-owned interface logic without installing the full upstream dependency set.
+The adapter, state generator, and their unit tests use only the Python standard library. The upstream integration tests require the legacy environment's pinned stack. This lets contributors test project-owned interface and reproducibility logic without installing the full upstream dependency set.
 
 ## Next architectural milestones
 
-1. Decide and document the canonical cube action set.
-2. Validate the upstream sticker permutations against independent cube-state invariants, not only sticker counts and inverse relationships.
-3. Add an environment factory that clearly owns upstream dependency imports.
-4. Add deterministic seed control and state generation.
+1. Independently validate the upstream sticker permutations against corner/edge permutation and orientation invariants, not only sticker counts and inverse relationships.
+2. Verify the state generator against the independently validated transition model.
+3. Decide and document the canonical cube action set and move metric.
+4. Add an environment factory that clearly owns upstream dependency imports.
 5. Add an experiment interface before selecting an RL algorithm.
