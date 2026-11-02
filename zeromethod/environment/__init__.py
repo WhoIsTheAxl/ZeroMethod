@@ -3,7 +3,12 @@
 from .adapter import GymRubiksCubeAdapter, StepResult
 from .actions import ACTION_COUNT, INVERSE_ACTIONS, Action, inverse_action
 from .state_generation import RandomWalkStateGenerator, derive_split_seed
-from .state_legality import is_legal_cube_state, validate_cube_state
+from .state_legality import (
+    is_legal_cube_state,
+    is_valid_observation,
+    validate_cube_state,
+    validate_observation,
+)
 
 __all__ = [
     "GymRubiksCubeAdapter",
@@ -16,4 +21,6 @@ __all__ = [
     "derive_split_seed",
     "is_legal_cube_state",
     "validate_cube_state",
+    "is_valid_observation",
+    "validate_observation",
 ]
