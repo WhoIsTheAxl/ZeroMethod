@@ -19,6 +19,12 @@ GymRubiksCube (Git submodule)
 Independent cube-state legality validator
 ```
 
+## Environment factory
+
+The make_environment function lazily imports and constructs the pinned upstream RubiksCubeEnv, applies its episode configuration, and returns a GymRubiksCubeAdapter. The default scramble_params=0 starts solved; max_steps=None leaves the episode unbounded. The factory does not seed NumPy global state. Reproducible randomized starts should be generated through RandomWalkStateGenerator and applied through the environment transition interface in a later runner layer.
+
+The factory is the sole project-owned boundary that imports the upstream environment package. Importing zeromethod.environment itself remains safe without GymRubiksCube installed.
+
 ## Adapter contract
 
 `zeromethod.environment.GymRubiksCubeAdapter` wraps an already-created environment object. It does not import GymRubiksCube or any numerical package at module import time.
