@@ -28,10 +28,22 @@ Random walks are not uniform samples of cube state space, and depth is not guara
 
 Use `EpisodeRunner(env).run(policy, depth=..., seed=..., max_agent_steps=...)` for bounded episodes. The policy is a callable from the current observation to one action index. It is never called during scramble construction. The returned result records cumulative reward, agent-only step count, final observation, termination/truncation, and success. A zero-step budget is valid and immediately truncates an unsolved starting state. The runner does not own or close the environment.
 
+## Random-policy baseline
+
+Run the reference baseline with:
+
+```bash
+python -m zeromethod.experiments.random_baseline --episodes 100 --depth 10 --max-agent-steps 100 --seed 42
+```
+
+The policy chooses uniformly among all 18 actions, including immediate inverses. This intentionally weak policy is a reference point, not a proposed solver. Every episode gets independent deterministic seeds for its scramble and policy RNG. The JSON report includes success rate, truncations, mean agent steps, mean successful solve steps, mean reward, policy-call count, mean policy latency, and wall-clock elapsed time.
+
+Use positive scramble depth. Do not interpret a zero-depth solved reset as a policy success. Compare outcome metrics across identical configurations and seeds; timing measurements naturally vary with machine load and should be reported separately. The random walk used for scramble generation is not a uniform sample of the cube state space.
+
 ## Evaluation and metrics
 
 Keep training, validation, and final evaluation states separate. Report solve success rate, inference latency, solution length under a declared metric, run-to-run consistency, and generalization across independent seeds.
 
 ## Current limitations
 
-The episode runner is implemented, but no agent, training loop, or trained model exists yet. The upstream reward is sparse (+1 solved, otherwise 0). Any reward shaping must be documented and checked for solution-information leakage.
+The episode runner and uniform-random reference baseline are implemented. No learned agent, training loop, or trained model exists yet. The upstream reward is sparse (+1 solved, otherwise 0). Any reward shaping must be documented and checked for solution-information leakage.
