@@ -107,7 +107,7 @@ def _canonicalize_frame(state):
                 canonical[target] = state[source]
             return tuple(canonical)
 
-    raise ValueError("center arrangement is not a rigid cube orientation")
+    raise ValueError("center colors do not form a rigid cube orientation")
 
 
 def _facelet(standard_index: int) -> int:
@@ -181,11 +181,34 @@ def _permutation_parity(permutation: Tuple[int, ...]) -> int:
     return inversions & 1
 
 
-def validate_cube_state(observation: Iterable[int]) -> None:
-    """Raise ValueError unless observation describes a reachable cube state.
+def validate_observation(observation: Iterable[int]) -> None:
+    """Validate the 54-sticker observation contract, not physical reachability."""
+    try:
+        state = tuple(index(value) for value in observation)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("observation must contain integer sticker colors") from exc
+    if len(state) != 54:
+        raise ValueError("observation must contain exactly 54 stickers")
+    if any(color < 0 or color > 5 for color in state):
+        raise ValueError("sticker colors must be in the range 0 through 5")
+    if tuple(state.count(color) for color in range(6)) != (9, 9, 9, 9, 9, 9):
+        raise ValueError("each sticker color must occur exactly nine times")
 
-    Checks fixed centers, color counts, unique corner/edge cubies, total corner
-    twist, total edge flip, and matching corner/edge permutation parity.
+
+def is_valid_observation(observation: Iterable[int]) -> bool:
+    """Return whether an observation satisfies the 54-sticker contract."""
+    try:
+        validate_observation(observation)
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
+def validate_cube_state(observation: Iterable[int]) -> None:
+    """Validate conventional fixed-center cubie invariants.
+
+    This is not applicable to arbitrary states produced by upstream
+    middle-slice actions, which relocate center stickers.
     """
     try:
         state = tuple(index(value) for value in observation)
