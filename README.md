@@ -4,8 +4,8 @@
 
 ZeroMethod aims to develop a cube-solving agent that learns the mechanics of the cube from its environment rather than being given a human solving method such as CFOP or Roux. Speed is a major goal, but solving ability and generalization come first.
 
-> **Project status: Environment validation.**  
-> The repository contains the environment dependency and its first contract tests. No trained agent or solver is available yet.
+> **Project status: Environment infrastructure.**  
+> The repository now includes a dependency-free adapter, adapter contract tests, and CI. The upstream environment integration suite is being validated. No trained agent or solver is available yet.
 
 ## Project goals
 
@@ -52,7 +52,10 @@ git submodule update --init --recursive
 
 ## Environment validation
 
-The first test suite checks the upstream environment's basic contract without opening its graphical renderer.
+The test suite has two layers:
+
+- **Dependency-free core tests:** validate ZeroMethod's adapter using a fake environment. These run on modern Python without Gym, NumPy, pygame, or the upstream submodule's dependencies.
+- **Upstream integration tests:** validate the pinned GymRubiksCube implementation without opening its graphical renderer.
 
 The upstream project was tested with Python 3.8.10. Its setup file pins older versions of NumPy, Gym, and other packages, so installation may fail on newer Python runtimes. In a compatible environment, install the submodule in editable mode:
 
@@ -60,15 +63,21 @@ The upstream project was tested with Python 3.8.10. Its setup file pins older ve
 python -m pip install -e third_party/GymRubiksCube
 ```
 
-Then run the tests from the repository root:
+Run the dependency-free adapter tests from the repository root on any supported Python 3 version:
+
+```bash
+python -m unittest discover -s tests -p "test_adapter.py" -v
+```
+
+Then run the complete upstream integration suite in the compatible environment:
 
 ```bash
 python -m unittest discover -s tests -v
 ```
 
-The tests currently verify:
+The upstream integration tests currently verify:
 
-- Reset produces a solved 54-sticker state.
+- Reset produces a solved 54-sticker state:
 - Each of the 18 actions is accepted and preserves nine stickers of each color.
 - Every action's sticker permutation is a bijection.
 - Each documented inverse-action pair restores the solved state.
@@ -76,6 +85,18 @@ The tests currently verify:
 - Solved-state detection and terminal reward behavior work as expected.
 
 These are environment integrity checks, not proof that every physically reachable cube state is represented correctly. Further legality and compatibility checks are still required.
+
+The dependency-free adapter tests verify:
+
+- Legacy reset/step results are normalized to a stable interface.
+- Observations are immutable 54-sticker tuples with valid color counts.
+- Solved states are terminations; unsolved episode limits are truncations.
+- Invalid action types, out-of-range actions, and malformed observations are rejected.
+- Closing the adapter delegates to the wrapped environment.
+
+GitHub Actions runs the dependency-free tests on Python 3.12 and the upstream integration suite on Python 3.8.
+
+See [the environment architecture](docs/architecture.md) and [training/evaluation protocol](docs/training_protocol.md) for design constraints.
 
 ## Planned development
 
@@ -97,8 +118,16 @@ These are environment integrity checks, not proof that every physically reachabl
 
 ```text
 ZeroMethod/
+├── .github/workflows/ci.yml
+├── docs/
+│   ├── architecture.md
+│   └── training_protocol.md
 ├── tests/
+│   ├── test_adapter.py
 │   └── test_environment.py
+├── zeromethod/
+│   └── environment/
+│       └── adapter.py
 ├── third_party/
 │   └── GymRubiksCube/   # Upstream environment (Git submodule)
 ├── .gitmodules
