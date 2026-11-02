@@ -52,13 +52,13 @@ def _facelet_geometry():
                 elif face == 1:  # F: source -y face
                     position = (column - 1, -1, 1 - row)
                 elif face == 2:  # R: source +x face
-                    position = (1, 1 - row, 1 - column)
+                    position = (1, column - 1, 1 - row)
                 elif face == 3:  # B: source +y face
                     position = (1 - column, 1, 1 - row)
                 elif face == 4:  # L: source -x face
-                    position = (-1, 1 - row, column - 1)
+                    position = (-1, 1 - column, 1 - row)
                 else:  # D: source -z face
-                    position = (column - 1, 1 - row, -1)
+                    position = (column - 1, row - 1, -1)
                 positions.append(position)
                 normals.append(normal)
     return positions, normals
