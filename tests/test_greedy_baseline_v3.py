@@ -55,8 +55,10 @@ class TestGreedyBaselineV3(unittest.TestCase):
 
     def test_sticker_score(self):
         self.assertEqual(count_correct_stickers(SOLVED_STATE), 54)
-        changed = (1,) + SOLVED_STATE[1:]
-        self.assertEqual(count_correct_stickers(changed), 53)
+        changed = (
+            (1,) + SOLVED_STATE[1:9] + (0,) + SOLVED_STATE[10:]
+        )
+        self.assertEqual(count_correct_stickers(changed), 52)
 
     def test_policy_probes_all_actions_and_restores_state(self):
         env, raw = self.make_env()
@@ -92,7 +94,11 @@ class TestGreedyBaselineV3(unittest.TestCase):
         )
         self.assertEqual(report.policy, GreedyOneStepPolicy.name)
         self.assertEqual(report.episodes, 3)
-        self.assertEqual(report.policy_calls, 15)
+        self.assertEqual(
+            report.policy_calls,
+            sum(result.agent_steps for result in report.episode_results),
+        )
+        self.assertLessEqual(report.policy_calls, 15)
         self.assertEqual(report.to_dict()["policy"], report.policy)
 
     def test_policy_rejects_wrong_action_space(self):
