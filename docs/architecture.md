@@ -2,7 +2,7 @@
 
 ## Current state
 
-ZeroMethod has environment and experiment infrastructure, including two random reference policies. It does not yet contain a trained agent, replay buffer, or training loop.
+ZeroMethod includes the validated environment layer, reference policies, a first experimental DQN training pipeline, and detailed solve benchmarking. The DQN has shown promising depth-1 results but is not yet a general-purpose cube solver.
 
 ## Environment factory
 
@@ -76,3 +76,26 @@ The trainer initializes each episode through `initialize_episode` and passes onl
 The first reward function is deliberately unshaped: the upstream environment's +1 solved reward and 0 otherwise. Sticker-count shaping is excluded because it can optimize a proxy objective rather than solving the cube. The default curriculum increases random-walk depth from 1 to 3 every 2,000 training episodes. This is an experimental starting schedule, not a claim that DQN will solve arbitrary cube states.
 
 Checkpoints save online/target weights, optimizer state, training step count, and experiment metadata. Replay contents and RNG state are not yet checkpointed, so the checkpoint is not an exact resumable training snapshot.
+
+
+## Solve recording and benchmarking
+
+`zeromethod.evaluation.solver_benchmark` provides `SolveRecorder`, `SolverBenchmark`, and `SolveReport`. A benchmark initializes a seeded scramble without exposing its action history to the policy, then records each selected action and resulting observation. The report includes the ordered move list, all intermediate states (initial state plus one per move), per-decision policy latency, environment transition latency, solving time, setup time, total runtime, reward, and environment-verified success.
+
+Solving time begins after scramble setup and covers the policy decisions plus environment transitions. Policy latency is measured separately from transition latency. All durations use `time.perf_counter_ns`; they are machine- and runtime-dependent. Action names preserve the upstream `Action` enum semantics rather than assuming unverified Singmaster notation. The report can be serialized with `to_json()` for later analysis or replay.
+
+Run one DQN checkpoint against a reproducible scramble with:
+
+```bash
+PYTHONPATH=third_party/GymRubiksCube python -m zeromethod.evaluation.solver_benchmark \\
+  --checkpoint artifacts/dqn_curriculum_v1.pt \\
+  --depth 3 --seed 42 --max-agent-steps 100 --device cuda:0
+```
+
+The environment is caller-owned and remains open only for the benchmark duration. The benchmark is an evaluation tool; it does not modify model weights or replay data.
+
+## Next milestones
+
+1. Evaluate the DQN on independent seeds and increasing scramble depths.
+2. Improve checkpoint reproducibility and training-resume support.
+3. Investigate stronger state representations and learning algorithms.
