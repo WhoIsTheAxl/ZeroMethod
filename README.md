@@ -114,15 +114,9 @@ PYTHONPATH=third_party/GymRubiksCube python -m zeromethod.evaluation.solver_benc
   --depth 3 --seed 42 --max-agent-steps 100 --device cuda:0
 ```
 
-The command prints a JSON solve report containing:
+The default terminal output is compact: it includes success/failure, stop reason, move count, timing metrics, and the ordered action trace without dumping every 54-sticker state. The benchmark also cross-checks the observation-level solved predicate against the upstream environment predicate and raises an error if they disagree. It detects repeated cube states and stops a loop with `stop_reason: cycle_detected`.
 
-- Environment-verified success and agent move count.
-- Scramble setup time, solving time, and total runtime.
-- Total and mean policy inference latency, separately from environment transition time.
-- Ordered action identifiers and per-move timing.
-- The initial observation plus every intermediate cube observation, allowing a complete state replay.
-
-All durations use a monotonic nanosecond clock. Solving time excludes scramble construction; inference time excludes the environment transition. Action identifiers preserve the upstream action enum and do not assume unverified Singmaster notation. For reliable performance comparisons, repeat across independent seeds on the same hardware and environment version.
+Use `--output artifacts/solve.json` to save the complete report, including the initial observation and every intermediate state. Add `--full-report` only when you intentionally want the full state history printed to the notebook. The solved predicate follows upstream semantics: each contiguous nine-sticker face must be uniform; it does not compare against one fixed color ordering. All durations use a monotonic nanosecond clock. Solving time excludes scramble construction; inference time excludes the environment transition. Action identifiers preserve upstream enum semantics and do not assume unverified Singmaster notation.
 
 ## Environment validation
 
