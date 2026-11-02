@@ -21,13 +21,19 @@ Independent cube-state legality validator
 
 ## Environment factory
 
-The make_environment function lazily imports and constructs the pinned upstream RubiksCubeEnv, applies its episode configuration, and returns a GymRubiksCubeAdapter. The default scramble_params=0 starts solved; max_steps=None leaves the episode unbounded. The factory does not seed NumPy global state. Reproducible randomized starts should be generated through RandomWalkStateGenerator and applied through the environment transition interface in a later runner layer.
+`make_environment(max_steps=None)` is the single project-owned entry point for creating the pinned upstream environment.
 
-The factory is the sole project-owned boundary that imports the upstream environment package. Importing zeromethod.environment itself remains safe without GymRubiksCube installed.
+- Imports GymRubiksCube lazily, so importing the core package does not require Gym, NumPy, pygame, or the submodule.
+- Disables the upstream environment's implicit random scramble. Every new environment therefore resets to the solved state.
+- Applies the optional positive episode step limit before the first reset.
+- Verifies that the upstream action space still has exactly `ACTION_COUNT` (18) actions.
+- Wraps the raw environment in `GymRubiksCubeAdapter` and closes the raw instance if factory validation fails.
+
+Randomized starting states must come from `RandomWalkStateGenerator`, not the upstream global-NumPy scramble. This keeps seed ownership explicit and makes generated states reproducible. The factory creates an environment; it does not itself choose a curriculum depth or inject a generated state into an episode.
 
 ## Adapter contract
 
-`zeromethod.environment.GymRubiksCubeAdapter` wraps an already-created environment object. It does not import GymRubiksCube or any numerical package at module import time.
+`GymRubiksCubeAdapter` wraps an already-created environment object. It does not import GymRubiksCube or any numerical package at module import time.
 
 - `reset() -> (observation, info)`
 - `step(action) -> StepResult`
@@ -72,7 +78,6 @@ The adapter, action interface, state generator, observation validator, fixed-cen
 
 ## Next architectural milestones
 
-1. Add an environment factory that clearly owns upstream dependency imports.
-2. Add a transition-model consistency test connecting the project-owned action enum to every upstream action permutation.
-3. Define episode limits and a reproducible curriculum/evaluation runner.
-4. Add an experiment interface and baseline throughput measurements before selecting an RL algorithm.
+1. Add a transition-model consistency test connecting the project-owned action enum to every upstream action permutation.
+2. Define episode limits and a reproducible curriculum/evaluation runner.
+3. Add an experiment interface and baseline throughput measurements before selecting an RL algorithm.
