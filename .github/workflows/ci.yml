@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  environment-tests:
-    name: Environment tests (Python 3.8)
+  core-tests:
+    name: Dependency-free core tests (Python 3.12)
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository and submodules
@@ -21,23 +21,43 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.8"
+          python-version: "3.12"
 
-      - name: Install compatible environment dependencies
+      - name: Compile project modules and tests
+        run: python -m compileall -q zeromethod tests
+
+      - name: Run dependency-free adapter tests
+        run: python -m unittest discover -s tests -p "test_adapter.py" -v
+
+  environment-tests:
+    name: Upstream environment tests (Python 3.10)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository and submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install environment runtime dependencies
         run: |
-          python -m pip install --upgrade "pip==23.3.2" "setuptools<58" wheel
+          python -m pip install --upgrade pip
           python -m pip install \
-            numpy==1.20.3 \
-            numba==0.54.0 \
-            pygame==2.0.1 \
-            Pillow==7.0.0 \
-            scipy==1.7.1 \
-            gym==0.20.0
+            numpy==1.23.5 \
+            numba==0.57.1 \
+            pygame==2.5.2 \
+            Pillow==10.0.1 \
+            scipy==1.10.1 \
+            gym==0.25.2
 
-      - name: Compile project tests
-        run: python -m compileall -q tests
+      - name: Compile project modules and tests
+        run: python -m compileall -q zeromethod tests
 
-      - name: Run environment test suite
+      - name: Run upstream environment tests
         env:
           PYTHONPATH: third_party/GymRubiksCube
-        run: python -m unittest discover -s tests -v
+        run: python -m unittest discover -s tests -p "test_environment.py" -v
