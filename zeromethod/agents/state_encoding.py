@@ -14,6 +14,7 @@ def encode_observation(observation):
     observation contract as the environment adapter and does not infer
     cubie coordinates or apply a human solving representation.
     """
+    observation = tuple(observation)
     validate_observation(observation)
     values = []
     for color in observation:
