@@ -18,6 +18,12 @@ The upstream max_steps counter includes actions used to construct the starting s
 
 Depth is action count, not shortest-path distance. Walks may revisit states or theoretically end solved.
 
+## Episode runner
+
+`EpisodeRunner` receives an adapter and a callable policy. Its `run` method initializes the seeded starting state, then gives the policy only the current observation. It enforces `max_agent_steps` independently of upstream scramble steps and returns an immutable `EpisodeResult` containing final observation, cumulative reward, agent action count, termination/truncation flags, and success. A solved initial state ends at zero agent actions. The runner does not close the environment; callers control environment lifetime.
+
+The runner treats the agent-step budget as a hard cap: reaching it without solving produces truncation. An upstream truncation is preserved. Policy actions are checked as integer indices and then validated by the adapter.
+
 ## Adapter and observation contract
 
 GymRubiksCubeAdapter normalizes reset to (observation, info), step to StepResult, and close to None. Observations are immutable tuples of 54 integer stickers, values 0..5, exactly nine of each color.
