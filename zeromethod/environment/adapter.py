@@ -6,7 +6,7 @@ Gym, NumPy, pygame, or the upstream submodule.
 """
 
 from dataclasses import dataclass
-from typing import Any, Mapping, Tuple
+from operator import index\nfrom typing import Any, Mapping, Tuple
 
 
 @dataclass(frozen=True)
@@ -44,7 +44,7 @@ class GymRubiksCubeAdapter:
     @classmethod
     def _normalize_observation(cls, observation: Any) -> Tuple[int, ...]:
         try:
-            values = tuple(int(value) for value in observation)
+            values = tuple(index(value) for value in observation)
         except (TypeError, ValueError) as exc:
             raise ValueError("observation must be a one-dimensional sequence of integers") from exc
 
