@@ -14,7 +14,7 @@ import numpy as np
 
 from gym_rubiks_cube.envs.rubiksCubeEnv import RubiksCubeEnv
 
-from zeromethod.environment.state_legality import validate_cube_state
+from zeromethod.environment.state_legality import validate_cube_state, validate_observation
 
 
 INVERSE_ACTION_PAIRS = (
@@ -217,13 +217,23 @@ class TestGymRubiksCubeEnvironment(unittest.TestCase):
         np.testing.assert_array_equal(state, self.initial_state)
 
 
-    def test_reachable_random_walk_states_pass_cubie_invariants(self):
+    def test_full_action_random_walk_preserves_observation_contract(self):
         rng = np.random.RandomState(20261103)
         state = self.initial_state.copy()
-
-        validate_cube_state(state)
+        validate_observation(state)
         for step in range(1000):
             action = int(rng.randint(0, self.env.action_space.n))
+            state = self.env.transform(state, action)
+            with self.subTest(step=step, action=action):
+                validate_observation(state)
+
+    def test_outer_face_random_walk_passes_fixed_center_cubie_invariants(self):
+        rng = np.random.RandomState(20261104)
+        outer_actions = (0, 1, 4, 5, 6, 7, 10, 11, 12, 13, 16, 17)
+        state = self.initial_state.copy()
+        validate_cube_state(state)
+        for step in range(1000):
+            action = int(rng.choice(outer_actions))
             state = self.env.transform(state, action)
             with self.subTest(step=step, action=action):
                 validate_cube_state(state)
