@@ -21,14 +21,13 @@ def count_correct_stickers(observation: Tuple[int, ...]) -> int:
 class GreedyOneStepPolicy:
     """Probe each legal action, score its successor, then choose a maximum.
 
-    Probes are made through the real environment transition API. Each probe is
-    immediately undone with its verified inverse action; the policy checks
-    that the original observation has been restored before trying another
-    action. The runner subsequently executes the selected action normally.
+    Probes use only the public adapter transition API. Each probe is undone
+    with its verified inverse action, and the resulting observation must
+    exactly match the input before the next candidate is evaluated.
 
-    This is an intentionally simple model-based baseline, not a learned
-    policy. It has access to one-step transition queries and performs 36
-    environment transitions per decision (18 forward probes + 18 reversals).
+    This is a model-based reference policy, not a learned policy. It performs
+    36 environment transitions per decision: 18 forward probes and 18
+    reversals. The episode runner then executes the selected action normally.
     """
 
     name = "greedy_one_step_correct_stickers"
@@ -45,18 +44,16 @@ class GreedyOneStepPolicy:
 
     def __call__(self, observation: Tuple[int, ...]) -> int:
         started = perf_counter()
+        observation = tuple(observation)
         validate_observation(observation)
-        if tuple(observation) != tuple(self.env.env.state) if hasattr(self.env, "env") and hasattr(self.env.env, "state") else False:
-            # Avoid relying on private upstream state; the authoritative
-            # consistency check below is based on public transition results.
-            pass
 
         scores = []
         for action in range(ACTION_COUNT):
             successor = self.env.step(action).observation
             scores.append(count_correct_stickers(successor))
+
             restored = self.env.step(int(inverse_action(action))).observation
-            if restored != tuple(observation):
+            if restored != observation:
                 raise RuntimeError(
                     "environment failed to restore the observation after "
                     "probing action {}".format(action)
