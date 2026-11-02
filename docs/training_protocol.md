@@ -17,11 +17,13 @@ The agent must not receive:
 
 Environment code may retain internal state needed to execute transitions, but the training interface must not expose hidden scramble metadata. The seeded random-walk generator returns only the resulting immutable observation; it does not attach the generated action sequence.
 
-## State legality gate
+## State integrity and reachability
 
-Before a generated observation is accepted into a training or evaluation dataset, run `validate_cube_state`. It checks color counts, center orientation, corner and edge piece uniqueness, orientation sums, and permutation parity. **This gate is not currently trustworthy for the full 18-action environment:** CI has found reachable random-walk states involving middle-slice actions that the current center-normalization model rejects. Resolve this mismatch and get the upstream random-walk integration green before using the validator to admit training data.
+Every generated observation must pass `validate_observation`: exactly 54 integer stickers, values 0 through 5, and nine stickers of each color. The state generator obtains states by applying the upstream environment's own action transformations to a solved state, so the generation procedure itself provides reachability provenance. Store the generator version, action set, seed, and depth metadata alongside each dataset split, but do not expose scramble history to the agent.
 
-The validator currently canonicalizes the 24 possible rigid cube orientations. That is insufficient for all center arrangements produced by the upstream middle-slice transitions; this is an active correctness issue, not a property to work around by disabling validation. The validator does not certify that a state was sampled uniformly or that a scramble depth equals shortest solution distance.
+Do not use `validate_cube_state` as a gate for the full 18-action environment. That stronger validator checks conventional fixed-center cubie invariants and is only applicable to states generated without middle-slice turns (apart from rigid whole-cube orientation). The upstream E/S/M actions move center stickers, so the fixed-center cubie model cannot validate all states in this environment. This limitation is explicit rather than silently bypassed.
+
+The observation contract is an integrity check, not a mathematical proof of reachability, uniform sampling, or shortest-path distance.
 
 ## Curriculum experiments
 
