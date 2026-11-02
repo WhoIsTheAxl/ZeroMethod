@@ -1,19 +1,22 @@
 """Record and benchmark one policy-driven cube-solving attempt.
 
-Scramble construction is measured separately from solving. Per-decision policy
-latency, environment transition latency, end-to-end solving time, all selected
-actions, and every observed state are retained in a JSON-serializable report.
+Scramble construction is measured separately from solving. The benchmark
+cross-checks the upstream solved predicate against the observation, detects
+repeated states, and keeps full replay data available without printing it by
+default.
 """
 
-from dataclasses import asdict, dataclass
 import argparse
+from dataclasses import asdict, dataclass
 import json
 from operator import index
+from pathlib import Path
 from time import perf_counter_ns
 from typing import Callable, Tuple
 
 from zeromethod.environment.actions import ACTION_COUNT, Action
 from zeromethod.environment.episode import initialize_episode
+from zeromethod.environment.solved import is_solved_observation
 
 
 @dataclass(frozen=True)
@@ -92,6 +95,7 @@ class SolveReport:
     total_policy_time_ns: int
     total_transition_time_ns: int
     mean_policy_time_ns: float
+    stop_reason: str
     moves: Tuple[RecordedMove, ...]
     states: Tuple[Tuple[int, ...], ...]
 
@@ -121,12 +125,43 @@ class SolveReport:
             "total_transition_time_ns": self.total_transition_time_ns,
             "mean_policy_time_ns": self.mean_policy_time_ns,
             "mean_policy_time_seconds": self.mean_policy_time_seconds,
+            "stop_reason": self.stop_reason,
             "moves": [move.to_dict() for move in self.moves],
             "states": [list(state) for state in self.states],
         }
 
-    def to_json(self, *, indent=2):
-        return json.dumps(self.to_dict(), indent=indent, sort_keys=True)
+    def to_compact_dict(self):
+        """Return a terminal-friendly summary without 54-sticker state dumps."""
+        return {
+            "policy": self.policy,
+            "scramble_depth": self.scramble_depth,
+            "scramble_seed": self.scramble_seed,
+            "success": self.success,
+            "final_state_verified": self.final_state_verified,
+            "agent_steps": self.agent_steps,
+            "stop_reason": self.stop_reason,
+            "solving_time_ns": self.solving_time_ns,
+            "solving_time_seconds": self.solving_time_seconds,
+            "setup_time_ns": self.setup_time_ns,
+            "total_runtime_ns": self.total_runtime_ns,
+            "total_policy_time_ns": self.total_policy_time_ns,
+            "mean_policy_time_ns": self.mean_policy_time_ns,
+            "total_transition_time_ns": self.total_transition_time_ns,
+            "moves": [
+                {
+                    "step": move.step,
+                    "action": move.action,
+                    "action_name": move.action_name,
+                    "policy_time_ns": move.policy_time_ns,
+                    "transition_time_ns": move.transition_time_ns,
+                }
+                for move in self.moves
+            ],
+        }
+
+    def to_json(self, *, indent=2, include_states=True):
+        payload = self.to_dict() if include_states else self.to_compact_dict()
+        return json.dumps(payload, indent=indent, sort_keys=True)
 
 
 class SolverBenchmark:
@@ -151,6 +186,16 @@ class SolverBenchmark:
             raise ValueError("{} must be non-negative".format(name))
         return value
 
+    def _verified_solved(self, observation, *, phase):
+        observed = is_solved_observation(observation)
+        reported = bool(self.env.is_solved())
+        if observed != reported:
+            raise RuntimeError(
+                "solved-state disagreement {}: observation predicate is {}, "
+                "environment predicate is {}".format(phase, observed, reported)
+            )
+        return observed
+
     def run(self, policy: Callable[[Tuple[int, ...]], int], *, depth: int,
             seed: int, max_agent_steps: int, policy_name=None) -> SolveReport:
         if not callable(policy):
@@ -171,7 +216,16 @@ class SolverBenchmark:
         total_policy_time_ns = 0
         total_transition_time_ns = 0
         solving_start = perf_counter_ns()
-        success = bool(self.env.is_solved())
+
+        success = self._verified_solved(observation, phase="after scramble")
+        if depth == 1 and success:
+            raise RuntimeError(
+                "depth-1 scramble remained solved; environment action or "
+                "scramble initialization is not being applied"
+            )
+
+        seen_states = {tuple(observation)}
+        stop_reason = "solved" if success else "step_limit"
 
         while not success and len(recorder.moves) < max_agent_steps:
             policy_start = perf_counter_ns()
@@ -185,6 +239,8 @@ class SolverBenchmark:
                 raise TypeError(
                     "policy action must be an integer action index"
                 ) from exc
+            if not 0 <= action < ACTION_COUNT:
+                raise ValueError("policy action must be in [0, {})".format(ACTION_COUNT))
 
             transition_start = perf_counter_ns()
             result = self.env.step(action)
@@ -201,16 +257,30 @@ class SolverBenchmark:
                 elapsed_time_ns=elapsed_time_ns,
                 observation=observation,
             )
-            success = bool(self.env.is_solved())
-            if result.terminated or result.truncated:
-                break
 
-        solving_time_ns = (
-            perf_counter_ns() - solving_start if recorder.moves else 0
-        )
+            success = self._verified_solved(
+                observation, phase="after agent step {}".format(len(recorder.moves))
+            )
+            if success:
+                stop_reason = "solved"
+                break
+            if result.terminated or result.truncated:
+                stop_reason = "environment_terminated" if result.terminated else "environment_truncated"
+                break
+            state = tuple(observation)
+            if state in seen_states:
+                stop_reason = "cycle_detected"
+                break
+            seen_states.add(state)
+
+        if not success and len(recorder.moves) >= max_agent_steps:
+            stop_reason = "step_limit"
+
+        solving_time_ns = perf_counter_ns() - solving_start
         total_runtime_ns = perf_counter_ns() - runtime_start
-        # Verify against the environment, not just the reward or policy output.
-        final_state_verified = bool(self.env.is_solved())
+        final_state_verified = self._verified_solved(
+            observation, phase="at benchmark completion"
+        )
         success = success and final_state_verified
         moves = recorder.moves
         return SolveReport(
@@ -230,6 +300,7 @@ class SolverBenchmark:
             mean_policy_time_ns=(
                 total_policy_time_ns / len(moves) if moves else 0.0
             ),
+            stop_reason=stop_reason,
             moves=moves,
             states=recorder.states,
         )
@@ -243,9 +314,16 @@ def main(argv=None):
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--max-agent-steps", type=int, default=100)
     parser.add_argument("--device", default=None)
+    parser.add_argument(
+        "--full-report", action="store_true",
+        help="print every recorded 54-sticker state (large output)",
+    )
+    parser.add_argument(
+        "--output", default=None,
+        help="optional path for the complete JSON report, including states",
+    )
     args = parser.parse_args(argv)
 
-    # Keep PyTorch optional for users who only need the recorder/report types.
     import torch
     from zeromethod.agents.dqn import DQNAgent
     from zeromethod.environment.factory import make_environment
@@ -266,7 +344,11 @@ def main(argv=None):
             max_agent_steps=args.max_agent_steps,
             policy_name="DQN",
         )
-        print(report.to_json())
+        if args.output:
+            destination = Path(args.output)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text(report.to_json(), encoding="utf-8")
+        print(report.to_json(include_states=args.full_report))
     finally:
         env.close()
 
