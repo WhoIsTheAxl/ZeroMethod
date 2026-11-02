@@ -7,7 +7,7 @@
 ZeroMethod aims to develop a cube-solving agent that learns the mechanics of the cube from its environment rather than being given a human solving method such as CFOP or Roux. Speed is a major goal, but solving ability and generalization come first.
 
 > **Project status: Environment infrastructure.**  
-> The repository includes a dependency-free environment adapter, a seeded random-walk state generator, unit tests, and GitHub Actions CI. The state-generation suite has been added to CI; check the Actions page for the latest run result. No trained agent or solver is available yet.
+> The repository includes a dependency-free environment adapter, a seeded random-walk state generator, an independent cubie-invariant legality validator, unit tests, and GitHub Actions CI. The new legality checks are being exercised against long upstream random walks in CI. No trained agent or solver is available yet.
 
 ## Project goals
 
@@ -54,11 +54,12 @@ git submodule update --init --recursive
 
 ## Environment validation
 
-The test suite has three layers:
+The test suite has four layers:
 
 - **Dependency-free adapter tests:** validate the adapter using a fake environment.
 - **Dependency-free state-generation tests:** validate deterministic random walks and split-seed derivation.
-- **Upstream integration tests:** validate the pinned GymRubiksCube implementation without opening its graphical renderer.
+- **Dependency-free cube-state legality tests:** validate center orientation, corner/edge uniqueness, twist/flip sums, and permutation parity.
+- **Upstream integration tests:** validate the pinned GymRubiksCube implementation without opening its graphical renderer and check legality throughout a 1,000-move random walk.
 
 The upstream project was originally tested with Python 3.8.10 and pins older dependency versions. CI currently validates it with a separate, explicitly pinned compatibility stack on Python 3.10 rather than installing the upstream package metadata (which contains an invalid legacy Gym dependency specifier). The integration job installs:
 
@@ -77,6 +78,7 @@ Run the dependency-free tests from the repository root on any supported Python 3
 ```bash
 python -m unittest discover -s tests -p "test_adapter.py" -v
 python -m unittest discover -s tests -p "test_state_generation.py" -v
+python -m unittest discover -s tests -p "test_state_legality.py" -v
 ```
 
 The upstream integration tests currently verify:
@@ -98,7 +100,7 @@ The state-generation tests verify:
 - The generated observation does not carry scramble-history metadata.
 - Invalid depth and inverse-action maps are rejected.
 
-The generator uses a seeded random walk from the solved state and avoids immediately applying the previous action's inverse. It does not yet prove full Rubik's Cube legality or sample uniformly from the state space. Those are separate validation tasks.
+The state generator uses seeded random walks from the solved state and avoids immediately applying the previous action's inverse. The independent legality validator checks color counts, center arrangements up to rigid cube orientation, corner and edge uniqueness, corner twist sum, edge flip sum, and matching permutation parity. Since upstream middle-slice turns move center stickers, the validator canonicalizes the 24 possible cube orientations before checking cubie invariants. The validator does not make random walks uniform over the state space.
 
 GitHub Actions runs the dependency-free tests on Python 3.12 and the upstream integration suite on Python 3.10.
 
@@ -108,7 +110,7 @@ See [the environment architecture](docs/architecture.md) and [training/evaluatio
 
 1. **Environment validation** — establish reliable state, action, and reward behavior.
 2. **Environment adapter** — isolate the upstream environment behind a ZeroMethod interface.
-3. **State generation and legality** — independently validate cubie invariants and define evaluation sampling.
+3. **State generation and legality** — validate cubie invariants and define evaluation sampling.
 4. **Baseline experiments** — benchmark environment throughput and establish reproducible evaluation.
 5. **Agent experiments** — investigate learning approaches without injecting human solving algorithms.
 6. **Generalization and performance** — evaluate on independent states and measure inference latency separately from solution quality.
@@ -135,7 +137,8 @@ ZeroMethod/
 ├── zeromethod/
 │   └── environment/
 │       ├── adapter.py
-│       └── state_generation.py
+│       ├── state_generation.py
+│       └── state_legality.py
 ├── third_party/
 │   └── GymRubiksCube/   # Upstream environment (Git submodule)
 ├── .gitmodules
