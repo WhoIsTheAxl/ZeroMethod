@@ -24,10 +24,14 @@ A staged curriculum may increase random-walk depth. Derive distinct training, va
 
 Random walks are not uniform samples of cube state space, and depth is not guaranteed optimal distance.
 
+## Episode runner contract
+
+Use `EpisodeRunner(env).run(policy, depth=..., seed=..., max_agent_steps=...)` for bounded episodes. The policy is a callable from the current observation to one action index. It is never called during scramble construction. The returned result records cumulative reward, agent-only step count, final observation, termination/truncation, and success. A zero-step budget is valid and immediately truncates an unsolved starting state. The runner does not own or close the environment.
+
 ## Evaluation and metrics
 
 Keep training, validation, and final evaluation states separate. Report solve success rate, inference latency, solution length under a declared metric, run-to-run consistency, and generalization across independent seeds.
 
 ## Current limitations
 
-No agent, training loop, or trained model exists yet. The upstream reward is sparse (+1 solved, otherwise 0). Any reward shaping must be documented and checked for solution-information leakage.
+The episode runner is implemented, but no agent, training loop, or trained model exists yet. The upstream reward is sparse (+1 solved, otherwise 0). Any reward shaping must be documented and checked for solution-information leakage.
