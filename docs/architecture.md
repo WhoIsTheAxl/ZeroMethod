@@ -64,7 +64,7 @@ The upstream action mapping is documented in [action_space.md](action_space.md).
 
 For internal experiments, the provisional **environment action count (EAC)** metric assigns cost 1 to every action, including middle-slice turns. EAC is not HTM or QTM. Public benchmarks must state the exact action set and metric.
 
-The upstream direction labels for actions 12–17 are "downwards" / "upwards". Do not translate these into Singmaster clockwise notation in code until the geometric viewing convention has been independently verified.
+ZeroMethod now exposes a project-owned `Action` enum with stable values matching all 18 upstream indices, plus `ACTION_COUNT`, `INVERSE_ACTIONS`, and `inverse_action()`. The vertical action names preserve the upstream "down" / "up" wording rather than inventing unverified Singmaster notation. The 18-action interface is the selected project contract for the current environment.
 
 ## Dependency boundaries
 
@@ -72,8 +72,7 @@ The adapter, state generator, legality validator, and their unit tests use only 
 
 ## Next architectural milestones
 
-1. Independently audit the upstream action definitions and their intended notation.
-2. Verify the state generator against the independently validated transition model.
-3. Decide and document the canonical action set and move metric.
-4. Add an environment factory that clearly owns upstream dependency imports.
-5. Add an experiment interface before selecting an RL algorithm.
+1. Add an environment factory that clearly owns upstream dependency imports.
+2. Add a transition-model consistency test connecting the project-owned action enum to every upstream action permutation.
+3. Define episode limits and a reproducible curriculum/evaluation runner.
+4. Add an experiment interface and baseline throughput measurements before selecting an RL algorithm.
