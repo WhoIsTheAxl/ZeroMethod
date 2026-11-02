@@ -34,6 +34,12 @@ Both experiments share the same evaluator and report schema. Each episode gets i
 
 Run v1 with `python -m zeromethod.experiments.random_baseline` and v2 with `python -m zeromethod.experiments.random_baseline_v2`. Both accept `--episodes`, `--depth`, `--max-agent-steps`, and `--seed`.
 
+## Random-policy baseline v2
+
+`NoImmediateInverseRandomPolicy` samples uniformly from all 18 actions on its first decision. On each later decision it excludes the inverse of its immediately preceding action, leaving 17 choices. It does not inspect the cube observation, prevent longer cycles, or plan ahead. The v1 and v2 evaluators share the same report schema and episode evaluator.
+
+Run v2 with `python -m zeromethod.experiments.random_baseline_v2`. It accepts the same `--episodes`, `--depth`, `--max-agent-steps`, and `--seed` arguments as v1.
+
 ## Adapter and observation contract
 
 GymRubiksCubeAdapter normalizes reset to (observation, info), step to StepResult, and close to None. Observations are immutable tuples of 54 integer stickers, values 0..5, exactly nine of each color.
