@@ -128,6 +128,7 @@ See [the environment architecture](docs/architecture.md) and [training/evaluatio
 ZeroMethod/
 ├── .github/workflows/ci.yml
 ├── docs/
+│   ├── action_space.md
 │   ├── architecture.md
 │   └── training_protocol.md
 ├── tests/
