@@ -7,7 +7,7 @@
 ZeroMethod aims to develop a cube-solving agent that learns the mechanics of the cube from its environment rather than being given a human solving method such as CFOP or Roux. Speed is a major goal, but solving ability and generalization come first.
 
 > **Project status: Environment infrastructure.**  
-> The repository includes a dependency-free environment adapter, a seeded random-walk state generator, an independent cubie-invariant legality validator, unit tests, and GitHub Actions CI. The new legality checks are being exercised against long upstream random walks in CI. No trained agent or solver is available yet.
+> The repository includes a dependency-free environment adapter, a stable 18-action API, a seeded random-walk state generator, observation-integrity checks, a fixed-center cubie validator for outer-face-only states, unit tests, and GitHub Actions CI. No trained agent or solver is available yet.
 
 ## Project goals
 
@@ -58,8 +58,9 @@ The test suite has four layers:
 
 - **Dependency-free adapter tests:** validate the adapter using a fake environment.
 - **Dependency-free state-generation tests:** validate deterministic random walks and split-seed derivation.
-- **Dependency-free cube-state legality tests:** validate center orientation, corner/edge uniqueness, twist/flip sums, and permutation parity.
-- **Upstream integration tests:** validate the pinned GymRubiksCube implementation without opening its graphical renderer and check legality throughout a 1,000-move random walk.
+- **Dependency-free observation-integrity tests:** validate shape, sticker range, and color counts.
+- **Dependency-free fixed-center cubie tests:** validate center orientation, corner/edge uniqueness, twist/flip sums, and permutation parity for the fixed-center move subset.
+- **Upstream integration tests:** validate the pinned GymRubiksCube implementation without opening its graphical renderer, verify all 18 action permutations geometrically, and check observation integrity throughout a 1,000-action random walk. A separate outer-face-only walk checks fixed-center cubie invariants.
 
 The upstream project was originally tested with Python 3.8.10 and pins older dependency versions. CI currently validates it with a separate, explicitly pinned compatibility stack on Python 3.10 rather than installing the upstream package metadata (which contains an invalid legacy Gym dependency specifier). The integration job installs:
 
@@ -101,7 +102,7 @@ The state-generation tests verify:
 - The generated observation does not carry scramble-history metadata.
 - Invalid depth and inverse-action maps are rejected.
 
-The state generator uses seeded random walks from the solved state and avoids immediately applying the previous action's inverse. The independent legality validator checks color counts, center arrangements up to rigid cube orientation, corner and edge uniqueness, corner twist sum, edge flip sum, and matching permutation parity. Since upstream middle-slice turns move center stickers, the validator canonicalizes the 24 possible cube orientations before checking cubie invariants. The validator does not make random walks uniform over the state space.
+The state generator uses seeded random walks from the solved state and avoids immediately applying the previous action's inverse. `validate_observation` checks the full 18-action observation contract. The stronger `validate_cube_state` checks conventional fixed-center cubie invariants and is tested only on outer-face-turn states; it is not a gate for states containing upstream middle-slice turns. Random walks are not uniform samples of the state space.
 
 GitHub Actions runs the dependency-free tests on Python 3.12 and the upstream integration suite on Python 3.10.
 
