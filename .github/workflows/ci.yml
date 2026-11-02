@@ -32,6 +32,9 @@ jobs:
       - name: Run state-generation tests
         run: python -m unittest discover -s tests -p "test_state_generation.py" -v
 
+      - name: Run cube-state legality tests
+        run: python -m unittest discover -s tests -p "test_state_legality.py" -v
+
   environment-tests:
     name: Upstream environment tests (Python 3.10)
     runs-on: ubuntu-latest
