@@ -58,7 +58,7 @@ def _facelet_geometry():
                 elif face == 4:  # L: source -x face
                     position = (-1, 1 - column, 1 - row)
                 else:  # D: source -z face
-                    position = (column - 1, row - 1, -1)
+                    position = (column - 1, 1 - row, -1)
                 positions.append(position)
                 normals.append(normal)
     return positions, normals
