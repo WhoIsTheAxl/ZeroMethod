@@ -107,6 +107,45 @@ class TestGymRubiksCubeEnvironment(unittest.TestCase):
         self.env.step(0)
         self.assertFalse(self.env.isSolved())
 
+    def test_random_move_sequence_and_its_inverse_restore_state(self):
+        rng = np.random.RandomState(2026)
+        actions = rng.randint(0, self.env.action_space.n, size=100)
+        inverse_actions = {
+            action: action + 1 if action % 2 == 0 else action - 1
+            for action in range(self.env.action_space.n)
+        }
+
+        state = self.initial_state.copy()
+        for action in actions:
+            state = self.env.transform(state, int(action))
+
+        self.assert_valid_state(state)
+
+        for action in reversed(actions):
+            state = self.env.transform(state, inverse_actions[int(action)])
+
+        np.testing.assert_array_equal(state, self.initial_state)
+
+    def test_max_steps_ends_an_unsolved_episode(self):
+        self.env.max_steps = 1
+
+        observation, reward, done, info = self.env.step(0)
+
+        self.assert_valid_state(observation)
+        self.assertEqual(reward, 0)
+        self.assertTrue(done)
+        self.assertIsInstance(info, dict)
+        self.assertFalse(self.env.isSolved())
+
+    def test_scramble_reset_preserves_sticker_counts(self):
+        self.env.scramble_params = 25
+        np.random.seed(2026)
+
+        observation = self.env.reset()
+
+        self.assert_valid_state(observation)
+        self.assertEqual(self.env.steps_since_reset, 0)
+
 
 if __name__ == "__main__":
     unittest.main()
