@@ -6,6 +6,7 @@ so the module stays independent of Gym and NumPy.
 """
 
 from hashlib import sha256
+from operator import index
 from random import Random
 from typing import Callable, Iterable, Sequence, Tuple
 
@@ -19,6 +20,21 @@ def derive_split_seed(master_seed: int, split: str) -> int:
 
     payload = "{}:{}".format(master_seed, split.strip().lower()).encode("utf-8")
     return int.from_bytes(sha256(payload).digest()[:8], "big")
+
+
+def _normalize_state(state: Iterable[int]) -> Tuple[int, ...]:
+    try:
+        values = tuple(index(value) for value in state)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("state must be a sequence of integer sticker colors") from exc
+
+    if len(values) != 54:
+        raise ValueError("state must contain exactly 54 stickers")
+    if any(value < 0 or value > 5 for value in values):
+        raise ValueError("sticker colors must be in the range 0 through 5")
+    if [values.count(color) for color in range(6)] != [9] * 6:
+        raise ValueError("each sticker color must occur exactly nine times")
+    return values
 
 
 class RandomWalkStateGenerator:
@@ -53,12 +69,10 @@ class RandomWalkStateGenerator:
         ):
             raise ValueError("inverse action indices must be valid actions")
         for action, inverse in enumerate(inverse_actions):
-            if inverse_actions[inverse] != action:
-                raise ValueError("inverse_actions must be an involution")
+            if inverse == action or inverse_actions[inverse] != action:
+                raise ValueError("inverse_actions must contain distinct inverse pairs")
 
-        self._solved_state = tuple(int(value) for value in solved_state)
-        if len(self._solved_state) != 54:
-            raise ValueError("solved_state must contain exactly 54 stickers")
+        self._solved_state = _normalize_state(solved_state)
         self._transform = transform
         self.action_count = action_count
         self._inverse_actions = tuple(inverse_actions)
@@ -81,9 +95,7 @@ class RandomWalkStateGenerator:
                 inverse = self._inverse_actions[previous_action]
                 choices.remove(inverse)
             action = self._rng.choice(choices)
-            state = tuple(int(value) for value in self._transform(state, action))
+            state = _normalize_state(self._transform(state, action))
             previous_action = action
 
-        if len(state) != 54:
-            raise ValueError("transform returned an observation that is not 54 stickers")
         return state
