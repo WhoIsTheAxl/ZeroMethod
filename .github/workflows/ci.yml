@@ -22,11 +22,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.8"
-          cache: pip
 
       - name: Install compatible environment dependencies
         run: |
-          python -m pip install --upgrade "setuptools<58" wheel
+          python -m pip install --upgrade "pip==23.3.2" "setuptools<58" wheel
           python -m pip install \
             numpy==1.20.3 \
             numba==0.54.0 \
