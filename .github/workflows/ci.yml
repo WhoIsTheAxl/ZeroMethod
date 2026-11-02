@@ -35,6 +35,8 @@ jobs:
         run: python -m unittest discover -s tests -p "test_random_baseline.py" -v
       - name: Run random baseline v2 tests
         run: python -m unittest discover -s tests -p "test_random_baseline_v2.py" -v
+      - name: Run final baseline v3 tests
+        run: python -m unittest discover -s tests -p "test_greedy_baseline_v3.py" -v
       - name: Run action-interface tests
         run: python -m unittest discover -s tests -p "test_actions.py" -v
       - name: Run state-generation tests
@@ -72,3 +74,7 @@ jobs:
         env:
           PYTHONPATH: third_party/GymRubiksCube
         run: python -m zeromethod.experiments.random_baseline_v2 --episodes 2 --depth 3 --max-agent-steps 10 --seed 42
+      - name: Smoke-test final baseline v3 against upstream environment
+        env:
+          PYTHONPATH: third_party/GymRubiksCube
+        run: python -m zeromethod.experiments.greedy_baseline_v3 --episodes 2 --depth 3 --max-agent-steps 10 --seed 42
