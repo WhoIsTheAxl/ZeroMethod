@@ -17,13 +17,14 @@ class RunnerFakeEnvironment:
         self.max_steps = None
         self.state = SOLVED
         self.solved = False
+        self.reset_solved = False
         self.actions = []
         self.solve_action = 5
         self.reward_per_step = 0.25
 
     def reset(self):
         self.state = SOLVED
-        self.solved = False
+        self.solved = self.reset_solved
         self.actions = []
         return self.state
 
@@ -103,7 +104,8 @@ class TestEpisodeRunner(unittest.TestCase):
         self.assertFalse(result.success)
 
     def test_solved_initial_state_ends_without_policy_call(self):
-        _, runner = self.make_runner()
+        raw, runner = self.make_runner()
+        raw.reset_solved = True
         def forbidden_policy(observation):
             self.fail("policy must not run for an already-solved state")
 
