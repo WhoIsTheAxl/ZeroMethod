@@ -6,7 +6,8 @@ Gym, NumPy, pygame, or the upstream submodule.
 """
 
 from dataclasses import dataclass
-from operator import index\nfrom typing import Any, Mapping, Tuple
+from operator import index
+from typing import Any, Mapping, Tuple
 
 
 @dataclass(frozen=True)
