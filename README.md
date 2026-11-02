@@ -7,7 +7,7 @@
 ZeroMethod aims to develop a cube-solving agent that learns the mechanics of the cube from its environment rather than being given a human solving method such as CFOP or Roux. Speed is a major goal, but solving ability and generalization come first.
 
 > **Project status: Environment and baseline infrastructure.**  
-> The repository includes a dependency-free environment adapter, a stable 18-action API, seeded episode initialization, an episode runner, observation-integrity checks, two random-policy baselines, unit tests, and GitHub Actions CI. No trained agent or solver is available yet.
+> The repository includes a dependency-free environment adapter, a stable 18-action API, seeded episode initialization, an episode runner, observation-integrity checks, three reference baselines (two random and one state-aware greedy), unit tests, and GitHub Actions CI. No trained agent or solver is available yet.
 
 ## Project goals
 
@@ -71,6 +71,17 @@ python -m zeromethod.experiments.random_baseline_v2 --episodes 100 --depth 10 --
 ```
 
 Unlike v1, v2 excludes the inverse of its immediately preceding action. The first action is selected from all 18 actions; later actions are selected uniformly from the remaining 17. It remains a random policy: it does not inspect the cube state, plan ahead, or prevent longer cycles. Both baselines share the same per-episode policy seed namespace so their first random choice is paired for the same master seed.
+
+
+## Final baseline v3
+
+V3 is the final non-learning baseline before training. It performs one-step lookahead by probing all 18 actions through the environment adapter, scoring each successor by the number of correctly positioned stickers, and undoing each probe with its inverse action. It verifies exact state restoration and uses seeded tie-breaking among the highest-scoring actions.
+
+```bash
+python -m zeromethod.experiments.greedy_baseline_v3 --episodes 100 --depth 10 --max-agent-steps 100 --seed 42
+```
+
+This is a model-based heuristic, not a learned solver. It makes 36 environment transitions per decision (18 candidate probes and 18 reversals), plus the actual selected move. Its sticker-count heuristic can get stuck in local optima or cycles. The JSON output uses the same report schema as V1 and V2.
 
 ## Environment validation
 
