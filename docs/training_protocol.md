@@ -1,80 +1,33 @@
 # Training and evaluation protocol
 
-This document records constraints for experiments. It is not a claim that a training system already exists.
-
 ## Agent information boundary
 
-The agent may receive:
-- The current cube observation.
-- The legal action set.
-- The reward and episode boundary.
+The agent receives only its current observation, legal action set, reward, and episode boundary. It must not receive scramble actions, reverse action lists, precomputed solutions, or human solving demonstrations.
 
-The agent must not receive:
-- The scramble sequence.
-- A reverse action list.
-- A precomputed solution.
-- Human solving demonstrations or named human methods.
+initialize_episode(env, depth, seed) constructs a starting state by replaying a seeded random walk through real environment transitions. It returns only the final observation and an empty info mapping. The action history is local to the initializer.
 
-Environment code may retain internal state needed to execute transitions, but the training interface must not expose hidden scramble metadata. The seeded random-walk generator returns only the resulting immutable observation; it does not attach the generated action sequence.
+## Episode initialization constraints
+
+The upstream environment has no public arbitrary-state injection API. ZeroMethod avoids direct mutation of its internal cube state. It resets to solved and executes generated actions through the adapter.
+
+Create environments with make_environment(max_steps=None) when using initialize_episode. Upstream max_steps counts scramble-construction actions too. A future training runner must enforce the agent's own step limit after initialization.
+
+Depth is the number of actions replayed, not shortest-path distance. Immediate inverse pairs are excluded. For a fixed environment version, action mapping, depth, and seed reproduce the same walk. The info mapping intentionally contains no scramble metadata.
 
 ## State integrity and reachability
 
-Every generated observation must pass `validate_observation`: exactly 54 integer stickers, values 0 through 5, and nine stickers of each color. The state generator obtains states by applying the upstream environment's own action transformations to a solved state, so the generation procedure itself provides reachability provenance. Store the generator version, action set, seed, and depth metadata alongside each dataset split, but do not expose scramble history to the agent.
+Observations must contain 54 integer stickers, values 0..5, and nine of each color. Reachability provenance comes from upstream transitions. The conventional fixed-center validator is not suitable for the full 18-action set because middle-slice turns relocate centers.
 
-Do not use `validate_cube_state` as a gate for the full 18-action environment. That stronger validator checks conventional fixed-center cubie invariants and is only applicable to states generated without middle-slice turns (apart from rigid whole-cube orientation). The upstream E/S/M actions move center stickers, so the fixed-center cubie model cannot validate all states in this environment. This limitation is explicit rather than silently bypassed.
+## Curriculum and reproducibility
 
-The observation contract is an integrity check, not a mathematical proof of reachability, uniform sampling, or shortest-path distance.
+A staged curriculum may increase random-walk depth. Derive distinct training, validation, and evaluation seeds with derive_split_seed. Record source commit, environment/dependency versions, seeds, split, depth schedule, action set, EAC metric, algorithm, hyperparameters, runtime, and metrics.
 
-## Curriculum experiments
+Random walks are not uniform samples of cube state space, and depth is not guaranteed optimal distance.
 
-A staged curriculum may begin with shallow states and increase difficulty. Scramble depth is only a rough difficulty proxy: different sequences can cancel, revisit states, or produce the same state.
+## Evaluation and metrics
 
-Training curriculum examples:
-1. one-move states
-2. two-move states
-3. three-move states
-4. progressively deeper states
-
-The generator accepts an explicit seed. Recreate it with the same seed to reproduce its sequence of generated observations. Use `derive_split_seed(master_seed, split_name)` to derive stable, distinct seeds for training, validation, and evaluation. Record the master seed, split name, derived seed, and depth schedule for every experiment.
-
-The generator avoids immediately selecting the inverse of the previous action. This reduces trivial two-step cancellations but does not make random walks uniform or guarantee a particular state's shortest-path distance.
-
-## Evaluation separation
-
-Final evaluation must use independently generated randomized cube states that were not used during training or hyperparameter selection.
-
-Random action walks are useful for controlled curriculum experiments, but they are not automatically uniform samples from the cube state space. Do not label a fixed-length random walk as a uniform random-state benchmark.
-
-Maintain separate training, validation, and final test sets. Derive and record a different seed for each split. The final test set must remain untouched until a model/configuration is frozen.
-
-## Metrics
-
-Report at least:
-- solve success rate
-- inference latency (clearly state warm or cold)
-- solution length under a declared move metric
-- run-to-run consistency
-- generalization across independently generated states
-
-Do not conflate solution-generation latency with physical robot or human execution time.
-
-## Reproducibility
-
-Each experiment should record:
-- source commit
-- environment and dependency versions
-- algorithm and hyperparameters
-- master and derived random seeds
-- training-state generation procedure
-- evaluation-state generation procedure
-- scramble depth distribution
-- hardware/runtime details
-- metrics and raw result files
+Keep training, validation, and final evaluation states separate. Report solve success rate, inference latency, solution length under a declared metric, run-to-run consistency, and generalization across independent seeds.
 
 ## Current limitations
 
-The upstream GymRubiksCube environment uses 18 actions, including middle slices. Before reporting move efficiency, ZeroMethod must define whether this action set is retained or mapped to a conventional move metric.
-
-The current upstream reward is sparse: +1 for solved and 0 otherwise. Any future reward shaping must be documented and reviewed to ensure it does not encode a human solving method or leak solution information.
-
-The current state generator produces random walks from the solved state. It is a reproducible generator for controlled experiments, not a uniform sampler over legal cube states.
+No agent, training loop, or trained model exists yet. The upstream reward is sparse (+1 solved, otherwise 0). Any reward shaping must be documented and checked for solution-information leakage.
