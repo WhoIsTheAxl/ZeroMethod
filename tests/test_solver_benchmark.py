@@ -58,7 +58,7 @@ class TestSolverBenchmark(unittest.TestCase):
             depth=1, seed=7, max_agent_steps=4, policy_name="test-policy",
         )
         self.assertTrue(report.success)
-        self.assertTrue(report.final_state_verified)
+        self.assertTrue(report.final_state_is_solved)
         self.assertEqual(report.agent_steps, 1)
         self.assertEqual(len(report.moves), 1)
         self.assertEqual(report.moves[0].action_name, "U_CLOCKWISE")
@@ -84,7 +84,7 @@ class TestSolverBenchmark(unittest.TestCase):
             lambda observation: 0, depth=1, seed=7, max_agent_steps=3,
         )
         self.assertFalse(report.success)
-        self.assertFalse(report.final_state_verified)
+        self.assertFalse(report.final_state_is_solved)
         self.assertEqual(report.agent_steps, 2)
         self.assertEqual(len(report.states), 3)
         self.assertEqual(report.stop_reason, "cycle_detected")
