@@ -80,9 +80,9 @@ Checkpoints save online/target weights, optimizer state, training step count, an
 
 ## Solve recording and benchmarking
 
-`zeromethod.evaluation.solver_benchmark` provides `SolveRecorder`, `SolverBenchmark`, and `SolveReport`. A benchmark initializes a seeded scramble without exposing its action history to the policy, then records each selected action and resulting observation. The report includes the ordered move list, all intermediate states (initial state plus one per move), per-decision policy latency, environment transition latency, solving time, setup time, total runtime, reward, and environment-verified success.
+`zeromethod.evaluation.solver_benchmark` provides `SolveRecorder`, `SolverBenchmark`, and `SolveReport`. A benchmark initializes a seeded scramble without exposing its action history to the policy, then records each selected action and resulting observation. It cross-checks `is_solved_observation` against the upstream `isSolved()` predicate before and after every transition. A mismatch raises a diagnostic error instead of silently reporting a misleading result. The observation predicate follows upstream semantics: each contiguous nine-sticker face must be uniform; it does not require one fixed color ordering.
 
-Solving time begins after scramble setup and covers the policy decisions plus environment transitions. Policy latency is measured separately from transition latency. All durations use `time.perf_counter_ns`; they are machine- and runtime-dependent. Action names preserve the upstream `Action` enum semantics rather than assuming unverified Singmaster notation. The report can be serialized with `to_json()` for later analysis or replay.
+The benchmark detects repeated observations and terminates a loop with `stop_reason=cycle_detected`. Reports retain the full state history and ordered move list, but CLI output is compact by default to avoid overwhelming notebook browsers. Use `--output path.json` to save the complete report, or `--full-report` to print all states. Timing covers policy decisions plus environment transitions after setup; policy latency is measured separately. All durations use `time.perf_counter_ns` and are machine/runtime-dependent.
 
 Run one DQN checkpoint against a reproducible scramble with:
 
