@@ -86,7 +86,7 @@ class SolveReport:
     scramble_seed: int
     max_agent_steps: int
     success: bool
-    final_state_verified: bool
+    final_state_is_solved: bool
     agent_steps: int
     total_reward: float
     setup_time_ns: int
@@ -114,7 +114,7 @@ class SolveReport:
             "scramble_seed": self.scramble_seed,
             "max_agent_steps": self.max_agent_steps,
             "success": self.success,
-            "final_state_verified": self.final_state_verified,
+            "final_state_is_solved": self.final_state_is_solved,
             "agent_steps": self.agent_steps,
             "total_reward": self.total_reward,
             "setup_time_ns": self.setup_time_ns,
@@ -137,7 +137,7 @@ class SolveReport:
             "scramble_depth": self.scramble_depth,
             "scramble_seed": self.scramble_seed,
             "success": self.success,
-            "final_state_verified": self.final_state_verified,
+            "final_state_is_solved": self.final_state_is_solved,
             "agent_steps": self.agent_steps,
             "stop_reason": self.stop_reason,
             "solving_time_ns": self.solving_time_ns,
@@ -282,10 +282,10 @@ class SolverBenchmark:
 
         solving_time_ns = perf_counter_ns() - solving_start
         total_runtime_ns = perf_counter_ns() - runtime_start
-        final_state_verified = self._verified_solved(
+        final_state_is_solved = self._verified_solved(
             observation, phase="at benchmark completion"
         )
-        success = success and final_state_verified
+        success = success and final_state_is_solved
         moves = recorder.moves
         return SolveReport(
             policy=(policy_name or getattr(policy, "name", policy.__class__.__name__)),
@@ -293,7 +293,7 @@ class SolverBenchmark:
             scramble_seed=seed,
             max_agent_steps=max_agent_steps,
             success=success,
-            final_state_verified=final_state_verified,
+            final_state_is_solved=final_state_is_solved,
             agent_steps=len(moves),
             total_reward=total_reward,
             setup_time_ns=setup_time_ns,
