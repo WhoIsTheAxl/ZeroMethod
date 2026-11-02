@@ -14,6 +14,8 @@ import numpy as np
 
 from gym_rubiks_cube.envs.rubiksCubeEnv import RubiksCubeEnv
 
+from zeromethod.environment.state_legality import validate_cube_state
+
 
 INVERSE_ACTION_PAIRS = (
     (0, 1),
@@ -125,6 +127,18 @@ class TestGymRubiksCubeEnvironment(unittest.TestCase):
             state = self.env.transform(state, inverse_actions[int(action)])
 
         np.testing.assert_array_equal(state, self.initial_state)
+
+
+    def test_reachable_random_walk_states_pass_cubie_invariants(self):
+        rng = np.random.RandomState(20261103)
+        state = self.initial_state.copy()
+
+        validate_cube_state(state)
+        for step in range(1000):
+            action = int(rng.randint(0, self.env.action_space.n))
+            state = self.env.transform(state, action)
+            with self.subTest(step=step, action=action):
+                validate_cube_state(state)
 
     def test_max_steps_ends_an_unsolved_episode(self):
         self.env.max_steps = 1
