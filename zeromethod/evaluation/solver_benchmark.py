@@ -273,7 +273,11 @@ class SolverBenchmark:
                 break
             seen_states.add(state)
 
-        if not success and len(recorder.moves) >= max_agent_steps:
+        if (
+            not success
+            and len(recorder.moves) >= max_agent_steps
+            and stop_reason == "step_limit"
+        ):
             stop_reason = "step_limit"
 
         solving_time_ns = perf_counter_ns() - solving_start
