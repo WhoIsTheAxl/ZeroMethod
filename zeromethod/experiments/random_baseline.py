@@ -135,7 +135,7 @@ def _evaluate_policy_baseline(
             master_seed, "random-baseline-scramble-{}".format(episode_index)
         )
         policy_seed = derive_split_seed(
-            master_seed, "{}-policy-{}".format(policy_name, episode_index)
+            master_seed, "{}-policy-{}".format("random-baseline", episode_index)
         )
         policy = policy_factory(policy_seed)
         result = runner.run(
