@@ -29,6 +29,8 @@ jobs:
         run: python -m unittest discover -s tests -p "test_factory.py" -v
       - name: Run episode initialization tests
         run: python -m unittest discover -s tests -p "test_episode.py" -v
+      - name: Run episode runner tests
+        run: python -m unittest discover -s tests -p "test_runner.py" -v
       - name: Run action-interface tests
         run: python -m unittest discover -s tests -p "test_actions.py" -v
       - name: Run state-generation tests
