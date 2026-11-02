@@ -83,7 +83,7 @@ class DQNAgent:
         self.replay_buffer.add(state, action, reward, next_state, done)
 
     def learn(self):
-        """Perform one Double-DQN-style? No: standard DQN target update."""
+        """Perform one standard DQN target-network optimization step."""
         if len(self.replay_buffer) < self.batch_size:
             return None
         batch = self.replay_buffer.sample(self.batch_size)
