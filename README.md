@@ -54,7 +54,13 @@ git submodule update --init --recursive
 
 The first test suite checks the upstream environment's basic contract without opening its graphical renderer.
 
-Once the upstream environment's dependencies are installed, run:
+The upstream project was tested with Python 3.8.10. Its setup file pins older versions of NumPy, Gym, and other packages, so installation may fail on newer Python runtimes. In a compatible environment, install the submodule in editable mode:
+
+```bash
+python -m pip install -e third_party/GymRubiksCube
+```
+
+Then run the tests from the repository root:
 
 ```bash
 python -m unittest discover -s tests -v
