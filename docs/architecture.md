@@ -58,11 +58,13 @@ This is a fixed-frame physical-state validator, not a solver and not a uniform s
 
 The generator prevents an action from being followed immediately by its declared inverse. This only removes trivial adjacent cancellations. It does not guarantee shortest-path depth or uniform sampling.
 
-## Action-space warning
+## Action-space audit
 
-The upstream environment exposes 18 actions: clockwise and counter-clockwise versions of six layers/slices, including three middle slices. It is not equivalent to a conventional outer-face-only action set.
+The upstream action mapping is documented in [action_space.md](action_space.md). It exposes 18 quarter-turn actions: six outer faces and three middle slices, each with two directions. The source's face frame and color mapping are recorded there, along with inverse pairs and transition invariants.
 
-Do not compare raw action counts with standard HTM/QTM move counts without defining a conversion. Any benchmark must state its action set and move metric. The exact action notation and a project-wide metric remain to be finalized after independent inspection of the upstream action definitions.
+For internal experiments, the provisional **environment action count (EAC)** metric assigns cost 1 to every action, including middle-slice turns. EAC is not HTM or QTM. Public benchmarks must state the exact action set and metric.
+
+The upstream direction labels for actions 12–17 are "downwards" / "upwards". Do not translate these into Singmaster clockwise notation in code until the geometric viewing convention has been independently verified.
 
 ## Dependency boundaries
 
