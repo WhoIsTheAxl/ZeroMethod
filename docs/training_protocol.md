@@ -103,3 +103,10 @@ PYTHONPATH=third_party/GymRubiksCube python -m zeromethod.evaluation.solver_benc
 The JSON report distinguishes setup time (scramble construction), solving time (policy decisions plus environment transitions), total runtime, policy inference time, and environment transition time. `moves` is the ordered action trace; `states` contains the initial observation followed by each post-move observation. The final success flag is checked against the environment's solved-state predicate. Action names use the project-owned upstream action identifiers; they are not presented as Singmaster notation because some upstream direction conventions have not been independently established.
 
 For fair comparisons, hold scramble depth, seed, step budget, environment version, and hardware constant. A single solve's latency is descriptive; use many independent seeds and report distributions for performance claims.
+
+
+## Solve benchmark integrity safeguards
+
+The solve benchmark independently evaluates whether an observation is solved by checking that each of the six contiguous nine-sticker face blocks is uniform. This matches the upstream TransformCubeObject.isSolved semantics and avoids incorrectly requiring the original fixed color ordering after center-relocating slice moves. The benchmark compares this result with the live environment predicate before and after each agent transition; disagreement raises an error and invalidates the attempt.
+
+The benchmark also tracks previously observed states. If a non-solved state repeats, it stops immediately with `stop_reason=cycle_detected` rather than spending the remaining action budget oscillating. The terminal report is compact by default; the full replay (initial state plus every post-move state) can be saved with `--output path.json` or printed explicitly with `--full-report`.
