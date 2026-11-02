@@ -31,7 +31,7 @@ The upstream environment currently provides:
 | Reward | +1 when the cube is solved; otherwise 0 |
 | Rendering | Optional; not required for training |
 
-The 18 actions include outer-layer and middle-slice turns. Their permutations and inverse relationships are covered by the initial validation tests.
+The 18 actions include outer-layer and middle-slice turns. ZeroMethod retains all 18 as its canonical action set. The project-owned `Action` enum maps directly to upstream indices, with an explicit inverse-action mapping. Direction names preserve upstream semantics; no unverified Singmaster conversion is assumed.
 
 ### Compatibility note
 
@@ -77,6 +77,7 @@ Run the dependency-free tests from the repository root on any supported Python 3
 
 ```bash
 python -m unittest discover -s tests -p "test_adapter.py" -v
+python -m unittest discover -s tests -p "test_actions.py" -v
 python -m unittest discover -s tests -p "test_state_generation.py" -v
 python -m unittest discover -s tests -p "test_state_legality.py" -v
 ```
@@ -132,11 +133,13 @@ ZeroMethod/
 │   ├── architecture.md
 │   └── training_protocol.md
 ├── tests/
+│   ├── test_actions.py
 │   ├── test_adapter.py
 │   ├── test_environment.py
 │   └── test_state_generation.py
 ├── zeromethod/
 │   └── environment/
+│       ├── actions.py
 │       ├── adapter.py
 │       ├── state_generation.py
 │       └── state_legality.py
