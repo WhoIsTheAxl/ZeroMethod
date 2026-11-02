@@ -8,25 +8,17 @@ from importlib import import_module
 from operator import index
 from typing import Optional
 
+from .actions import ACTION_COUNT
 from .adapter import GymRubiksCubeAdapter
 
 
-def make_environment(*, scramble_params: int = 0, max_steps: Optional[int] = None) -> GymRubiksCubeAdapter:
-    """Create a configured GymRubiksCube environment and wrap it.
+def make_environment(*, max_steps: Optional[int] = None) -> GymRubiksCubeAdapter:
+    """Create a solved-start GymRubiksCube environment and wrap it.
 
-    scramble_params=0 creates a solved starting state. Randomized starts
-    should currently be produced by RandomWalkStateGenerator so randomness
-    is explicit and reproducible rather than using NumPy global RNG state.
+    The upstream environment's own random scramble is disabled. Randomized
+    starting states must be generated through RandomWalkStateGenerator so
+    their seeds and action histories remain under project control.
     """
-    if isinstance(scramble_params, bool):
-        raise TypeError("scramble_params must be an integer")
-    try:
-        scramble_params = index(scramble_params)
-    except TypeError as exc:
-        raise TypeError("scramble_params must be an integer") from exc
-    if scramble_params < 0:
-        raise ValueError("scramble_params must not be negative")
-
     if max_steps is not None:
         if isinstance(max_steps, bool):
             raise TypeError("max_steps must be an integer or None")
@@ -47,6 +39,19 @@ def make_environment(*, scramble_params: int = 0, max_steps: Optional[int] = Non
         ) from exc
 
     raw_env = module.RubiksCubeEnv()
-    raw_env.scramble_params = scramble_params
+    raw_env.scramble_params = 0
     raw_env.max_steps = max_steps
-    return GymRubiksCubeAdapter(raw_env)
+
+    try:
+        actual_action_count = raw_env.action_space.n
+        if actual_action_count != ACTION_COUNT:
+            raise RuntimeError(
+                "GymRubiksCube exposes {} actions; ZeroMethod requires {}"
+                .format(actual_action_count, ACTION_COUNT)
+            )
+        return GymRubiksCubeAdapter(raw_env)
+    except Exception:
+        close = getattr(raw_env, "close", None)
+        if callable(close):
+            close()
+        raise
