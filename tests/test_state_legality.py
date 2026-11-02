@@ -5,6 +5,8 @@ import unittest
 from zeromethod.environment.state_legality import (
     is_legal_cube_state,
     validate_cube_state,
+    validate_observation,
+    is_valid_observation,
 )
 
 
@@ -12,6 +14,16 @@ SOLVED = tuple(color for color in range(6) for _ in range(9))
 
 
 class TestCubeStateLegality(unittest.TestCase):
+    def test_observation_contract_accepts_solved_state(self):
+        validate_observation(SOLVED)
+        self.assertTrue(is_valid_observation(SOLVED))
+
+    def test_observation_contract_rejects_invalid_observations(self):
+        self.assertFalse(is_valid_observation(SOLVED[:-1]))
+        invalid = list(SOLVED)
+        invalid[0] = 6
+        self.assertFalse(is_valid_observation(invalid))
+
     def test_solved_state_is_legal(self):
         validate_cube_state(SOLVED)
         self.assertTrue(is_legal_cube_state(SOLVED))
