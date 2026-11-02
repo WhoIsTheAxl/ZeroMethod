@@ -30,6 +30,77 @@ INVERSE_ACTION_PAIRS = (
 )
 
 
+# Independent facelet geometry: face blocks are U, F, R, B, L, D.
+_FACE_NORMALS = (
+    (0, 1, 0),
+    (0, 0, 1),
+    (1, 0, 0),
+    (0, 0, -1),
+    (-1, 0, 0),
+    (0, -1, 0),
+)
+
+
+def _facelet_geometry():
+    positions = []
+    normals = []
+    for face, normal in enumerate(_FACE_NORMALS):
+        for row in range(3):
+            for column in range(3):
+                if face == 0:  # U
+                    position = (column - 1, 1, row - 1)
+                elif face == 1:  # F
+                    position = (column - 1, 1 - row, 1)
+                elif face == 2:  # R
+                    position = (1, 1 - row, 1 - column)
+                elif face == 3:  # B
+                    position = (1 - column, 1 - row, -1)
+                elif face == 4:  # L
+                    position = (-1, 1 - row, column - 1)
+                else:  # D
+                    position = (column - 1, -1, 1 - row)
+                positions.append(position)
+                normals.append(normal)
+    return positions, normals
+
+
+def _quarter_turn(vector, axis, sign):
+    x, y, z = vector
+    if axis == 0:
+        rotated = (x, -z, y)
+    elif axis == 1:
+        rotated = (z, y, -x)
+    else:
+        rotated = (-y, x, z)
+    if sign < 0:
+        return tuple(-value if index != axis else value
+                     for index, value in enumerate(rotated))
+    return rotated
+
+
+def _geometric_slice_permutation(axis, layer, sign):
+    positions, normals = _facelet_geometry()
+    lookup = {(position, normal): index
+              for index, (position, normal) in enumerate(zip(positions, normals))}
+    permutation = np.arange(54)
+    for source, (position, normal) in enumerate(zip(positions, normals)):
+        if position[axis] != layer:
+            continue
+        destination_position = _quarter_turn(position, axis, sign)
+        destination_normal = _quarter_turn(normal, axis, sign)
+        destination = lookup[(destination_position, destination_normal)]
+        permutation[destination] = source
+    return permutation
+
+
+# (rotation axis: x=0/y=1/z=2, selected layer coordinate)
+_ACTION_SLICES = (
+    (1, 1), (1, 1), (1, 0), (1, 0), (1, -1), (1, -1),
+    (2, -1), (2, -1), (2, 0), (2, 0), (2, 1), (2, 1),
+    (0, -1), (0, -1), (0, 0), (0, 0), (0, 1), (0, 1),
+)
+
+
 class TestGymRubiksCubeEnvironment(unittest.TestCase):
     def setUp(self):
         self.env = RubiksCubeEnv()
@@ -78,6 +149,23 @@ class TestGymRubiksCubeEnvironment(unittest.TestCase):
             with self.subTest(action=action):
                 self.assertEqual(permutation.shape, (54,))
                 np.testing.assert_array_equal(np.sort(permutation), expected)
+
+
+    def test_every_action_is_a_geometric_quarter_turn_of_its_declared_slice(self):
+        permutations = self.env.transform.transformation_permutations
+        for action, (axis, layer) in enumerate(_ACTION_SLICES):
+            with self.subTest(action=action, axis=axis, layer=layer):
+                matches = [
+                    sign for sign in (-1, 1)
+                    if np.array_equal(
+                        permutations[action],
+                        _geometric_slice_permutation(axis, layer, sign),
+                    )
+                ]
+                self.assertEqual(
+                    len(matches), 1,
+                    "action must match exactly one quarter-turn direction",
+                )
 
     def test_inverse_action_pairs_restore_solved_state(self):
         for clockwise, counterclockwise in INVERSE_ACTION_PAIRS:
