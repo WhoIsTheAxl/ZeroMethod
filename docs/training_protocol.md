@@ -64,4 +64,49 @@ Keep training, validation, and final evaluation states separate. Report solve su
 
 ## Current limitations
 
-V1 and V2 are random reference policies; V3 is a one-step model-based heuristic. No learned agent, training loop, or trained model exists yet. The next milestone is the first trainable agent and a reproducible training/evaluation loop. The upstream reward is sparse (+1 solved, otherwise 0). Any reward shaping must be documented and checked for solution-information leakage.
+V1 and V2 are random reference policies; V3 is a one-step model-based heuristic. The first DQN training pipeline now exists and has produced a promising depth-1 pilot result, but no general-purpose solver has been demonstrated. The upstream reward is sparse (+1 solved, otherwise 0). Any reward shaping must be documented and checked for solution-information leakage.
+
+
+## First DQN training protocol
+
+The first learned agent is a standard sparse-reward DQN. The state encoder expands each sticker color into a six-element one-hot vector, producing 324 features. The MLP emits one Q-value for each of the 18 environment actions. The agent uses replay sampling, a target network, epsilon-greedy exploration, Huber loss, and gradient clipping.
+
+Run from the repository root after installing the pinned upstream environment dependencies and PyTorch:
+
+```bash
+PYTHONPATH=third_party/GymRubiksCube python -m zeromethod.training.dqn \
+  --episodes 10000 --start-depth 1 --max-depth 3 \
+  --episodes-per-depth 2000 --max-agent-steps 20 \
+  --evaluation-interval 500 --evaluation-episodes 100 \
+  --seed 42 --checkpoint artifacts/dqn_v1.pt
+```
+
+The default curriculum increases random-walk depth from 1 to 3 in 2,000-episode stages. Epsilon decreases linearly from 1.0 to 0.05 over 50,000 agent transitions. Replay learning starts after 1,000 transitions; minibatches contain 64 transitions. The target network synchronizes every 1,000 optimizer updates. These are initial experimental hyperparameters, not tuned values.
+
+The reward is the upstream sparse reward (+1 on solved, otherwise 0). No intermediate sticker-count reward is used. A transition is marked done when the episode terminates or reaches its configured agent-step boundary. Evaluation uses a distinct seed namespace and greedy actions; evaluation experiences are not added to replay.
+
+The initial implementation trains on one GPU even when multiple GPUs are visible. The checkpoint stores model and optimizer state plus experiment metadata, but does not yet preserve replay-buffer contents or random-generator states; it is therefore a model artifact, not an exact training-resume checkpoint. Record the source commit, Kaggle runtime, PyTorch/CUDA versions, and full CLI arguments with benchmark results.
+
+
+## Single-attempt solve benchmark and replay
+
+Use `SolverBenchmark` when a detailed trace of one attempt is needed, rather than only aggregate success rates. It records the initial scrambled observation, every action selected by the policy, the resulting observation after each action, and nanosecond timing measurements.
+
+For a trained DQN checkpoint:
+
+```bash
+PYTHONPATH=third_party/GymRubiksCube python -m zeromethod.evaluation.solver_benchmark \\
+  --checkpoint artifacts/dqn_curriculum_v1.pt \\
+  --depth 3 --seed 42 --max-agent-steps 100 --device cuda:0
+```
+
+The JSON report distinguishes setup time (scramble construction), solving time (policy decisions plus environment transitions), total runtime, policy inference time, and environment transition time. `moves` is the ordered action trace; `states` contains the initial observation followed by each post-move observation. The final success flag is checked against the environment's solved-state predicate. Action names use the project-owned upstream action identifiers; they are not presented as Singmaster notation because some upstream direction conventions have not been independently established.
+
+For fair comparisons, hold scramble depth, seed, step budget, environment version, and hardware constant. A single solve's latency is descriptive; use many independent seeds and report distributions for performance claims.
+
+
+## Solve benchmark integrity safeguards
+
+The solve benchmark independently evaluates whether an observation is solved by checking that each of the six contiguous nine-sticker face blocks is uniform. This matches the upstream TransformCubeObject.isSolved semantics and avoids incorrectly requiring the original fixed color ordering after center-relocating slice moves. The benchmark compares this result with the live environment predicate before and after each agent transition; disagreement raises an error and invalidates the attempt.
+
+The benchmark also tracks previously observed states. If a non-solved state repeats, it stops immediately with `stop_reason=cycle_detected` rather than spending the remaining action budget oscillating. The terminal report is compact by default; the full replay (initial state plus every post-move state) can be saved with `--output path.json` or printed explicitly with `--full-report`.

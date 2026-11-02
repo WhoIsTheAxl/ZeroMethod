@@ -43,6 +43,14 @@ jobs:
         run: python -m unittest discover -s tests -p "test_state_generation.py" -v
       - name: Run cube-state legality tests
         run: python -m unittest discover -s tests -p "test_state_legality.py" -v
+      - name: Run neural state-encoding tests
+        run: python -m unittest discover -s tests -p "test_state_encoding.py" -v
+      - name: Run replay-buffer tests
+        run: python -m unittest discover -s tests -p "test_replay_buffer.py" -v
+      - name: Run solved-state predicate tests
+        run: python -m unittest discover -s tests -p "test_solved.py" -v
+      - name: Run solver benchmark tests
+        run: python -m unittest discover -s tests -p "test_solver_benchmark.py" -v
 
   environment-tests:
     name: Upstream environment tests (Python 3.10)
@@ -78,3 +86,7 @@ jobs:
         env:
           PYTHONPATH: third_party/GymRubiksCube
         run: python -m zeromethod.experiments.greedy_baseline_v3 --episodes 2 --depth 3 --max-agent-steps 10 --seed 42
+      - name: Smoke-test solver benchmark against upstream environment
+        env:
+          PYTHONPATH: third_party/GymRubiksCube
+        run: python -m zeromethod.evaluation.solver_benchmark --help

@@ -6,8 +6,8 @@
 
 ZeroMethod aims to develop a cube-solving agent that learns the mechanics of the cube from its environment rather than being given a human solving method such as CFOP or Roux. Speed is a major goal, but solving ability and generalization come first.
 
-> **Project status: Environment and baseline infrastructure.**  
-> The repository includes a dependency-free environment adapter, a stable 18-action API, seeded episode initialization, an episode runner, observation-integrity checks, three reference baselines (two random and one state-aware greedy), unit tests, and GitHub Actions CI. No trained agent or solver is available yet.
+> **Project status: First DQN training implementation.**  
+> The repository includes the validated environment adapter, three reference baselines, a 324-feature one-hot state encoder, replay buffer, PyTorch DQN agent, sparse-reward curriculum trainer, single-attempt solve recorder/benchmark, unit tests, and GitHub Actions CI. Training is experimental; no successful general-purpose solver has been demonstrated.
 
 ## Project goals
 
@@ -83,6 +83,41 @@ python -m zeromethod.experiments.greedy_baseline_v3 --episodes 100 --depth 10 --
 
 This is a model-based heuristic, not a learned solver. It makes 36 environment transitions per decision (18 candidate probes and 18 reversals), plus the actual selected move. Its sticker-count heuristic can get stuck in local optima or cycles. The JSON output uses the same report schema as V1 and V2.
 
+## First DQN training run
+
+The first learning implementation uses a 324-value one-hot representation (54 sticker positions × 6 colors), an MLP Q-network with 18 outputs, experience replay, a target network, Huber loss, gradient clipping, and epsilon-greedy exploration. It trains against the upstream sparse reward without sticker-count reward shaping. The default curriculum starts at random-walk depth 1 and increases to depth 3 every 2,000 episodes.
+
+PyTorch is required for training. On Kaggle, use the preinstalled CUDA-enabled PyTorch environment. Elsewhere, install a PyTorch build compatible with your hardware.
+
+```bash
+PYTHONPATH=third_party/GymRubiksCube python -m zeromethod.training.dqn \\
+  --episodes 10000 \\
+  --start-depth 1 \\
+  --max-depth 3 \\
+  --episodes-per-depth 2000 \\
+  --max-agent-steps 20 \\
+  --evaluation-interval 500 \\
+  --evaluation-episodes 100 \\
+  --seed 42 \\
+  --checkpoint artifacts/dqn_v1.pt
+```
+
+The trainer uses one GPU by default even when two are available. Evaluation uses a separate deterministic seed namespace and greedy actions; evaluation transitions are not inserted into replay. Checkpoints contain online/target network weights, optimizer state, and experiment metadata. The first implementation does not yet support resuming replay-buffer state.
+
+## Single-solve benchmark and replay
+
+To run one trained DQN checkpoint on a reproducible scramble and capture exactly what it did:
+
+```bash
+PYTHONPATH=third_party/GymRubiksCube python -m zeromethod.evaluation.solver_benchmark \\
+  --checkpoint artifacts/dqn_curriculum_v1.pt \\
+  --depth 3 --seed 42 --max-agent-steps 100 --device cuda:0
+```
+
+The default terminal output is compact: it includes success/failure, stop reason, move count, timing metrics, and the ordered action trace without dumping every 54-sticker state. The benchmark also cross-checks the observation-level solved predicate against the upstream environment predicate and raises an error if they disagree. It detects repeated cube states and stops a loop with `stop_reason: cycle_detected`.
+
+Use `--output artifacts/solve.json` to save the complete report, including the initial observation and every intermediate state. Add `--full-report` only when you intentionally want the full state history printed to the notebook. The solved predicate follows upstream semantics: each contiguous nine-sticker face must be uniform; it does not compare against one fixed color ordering. All durations use a monotonic nanosecond clock. Solving time excludes scramble construction; inference time excludes the environment transition. Action identifiers preserve upstream enum semantics and do not assume unverified Singmaster notation.
+
 ## Environment validation
 
 The test suite has four layers:
@@ -146,7 +181,8 @@ See [the environment architecture](docs/architecture.md) and [training/evaluatio
 3. **State generation and legality** — validate cubie invariants and define evaluation sampling.
 4. **Baseline experiments** — benchmark environment throughput and establish reproducible evaluation.
 5. **Agent experiments** — investigate learning approaches without injecting human solving algorithms.
-6. **Generalization and performance** — evaluate on independent states and measure inference latency separately from solution quality.
+6. **First learned agent** — establish a reproducible DQN training and validation loop.
+7. **Generalization and performance** — evaluate on independent states and measure inference latency separately from solution quality.
 
 ## Training and evaluation principles
 

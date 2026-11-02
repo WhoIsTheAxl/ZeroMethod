@@ -2,7 +2,7 @@
 
 ## Current state
 
-ZeroMethod has environment and experiment infrastructure, including two random reference policies. It does not yet contain a trained agent, replay buffer, or training loop.
+ZeroMethod includes the validated environment layer, reference policies, a first experimental DQN training pipeline, and detailed solve benchmarking. The DQN has shown promising depth-1 results but is not yet a general-purpose cube solver.
 
 ## Environment factory
 
@@ -63,3 +63,39 @@ The adapter, action interface, state generator, episode initializer, and validat
 1. Compare both random baselines across multiple seeds and scramble depths.
 2. Define the minimal agent interface and training loop.
 3. Investigate learning algorithms and evaluate generalization.
+
+
+## First learned agent: DQN
+
+The initial trainable agent is a sparse-reward Deep Q-Network. Its observation encoder preserves upstream sticker order and expands each of the 54 color values into six one-hot values (324 input features). A two-hidden-layer MLP maps the encoded observation to 18 action values.
+
+The agent uses an online Q-network, a periodically synchronized target network, a bounded replay buffer, epsilon-greedy exploration, Huber loss, and gradient clipping. Training starts on one device (CUDA when available); multiple visible GPUs are not automatically used.
+
+The trainer initializes each episode through `initialize_episode` and passes only observations, rewards, and transition boundaries to the agent. The scramble action sequence is never stored in replay or passed to the policy. Training and validation use separate deterministic seed namespaces.
+
+The first reward function is deliberately unshaped: the upstream environment's +1 solved reward and 0 otherwise. Sticker-count shaping is excluded because it can optimize a proxy objective rather than solving the cube. The default curriculum increases random-walk depth from 1 to 3 every 2,000 training episodes. This is an experimental starting schedule, not a claim that DQN will solve arbitrary cube states.
+
+Checkpoints save online/target weights, optimizer state, training step count, and experiment metadata. Replay contents and RNG state are not yet checkpointed, so the checkpoint is not an exact resumable training snapshot.
+
+
+## Solve recording and benchmarking
+
+`zeromethod.evaluation.solver_benchmark` provides `SolveRecorder`, `SolverBenchmark`, and `SolveReport`. A benchmark initializes a seeded scramble without exposing its action history to the policy, then records each selected action and resulting observation. It cross-checks `is_solved_observation` against the upstream `isSolved()` predicate before and after every transition. A mismatch raises a diagnostic error instead of silently reporting a misleading result. The observation predicate follows upstream semantics: each contiguous nine-sticker face must be uniform; it does not require one fixed color ordering.
+
+The benchmark detects repeated observations and terminates a loop with `stop_reason=cycle_detected`. Reports retain the full state history and ordered move list, but CLI output is compact by default to avoid overwhelming notebook browsers. Use `--output path.json` to save the complete report, or `--full-report` to print all states. Timing covers policy decisions plus environment transitions after setup; policy latency is measured separately. All durations use `time.perf_counter_ns` and are machine/runtime-dependent.
+
+Run one DQN checkpoint against a reproducible scramble with:
+
+```bash
+PYTHONPATH=third_party/GymRubiksCube python -m zeromethod.evaluation.solver_benchmark \\
+  --checkpoint artifacts/dqn_curriculum_v1.pt \\
+  --depth 3 --seed 42 --max-agent-steps 100 --device cuda:0
+```
+
+The environment is caller-owned and remains open only for the benchmark duration. The benchmark is an evaluation tool; it does not modify model weights or replay data.
+
+## Next milestones
+
+1. Evaluate the DQN on independent seeds and increasing scramble depths.
+2. Improve checkpoint reproducibility and training-resume support.
+3. Investigate stronger state representations and learning algorithms.

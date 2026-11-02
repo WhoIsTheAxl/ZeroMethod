@@ -15,6 +15,7 @@ import numpy as np
 from gym_rubiks_cube.envs.rubiksCubeEnv import RubiksCubeEnv
 
 from zeromethod.environment.state_legality import validate_cube_state, validate_observation
+from zeromethod.environment.solved import is_solved_observation
 
 
 INVERSE_ACTION_PAIRS = (
@@ -191,10 +192,16 @@ class TestGymRubiksCubeEnvironment(unittest.TestCase):
                 self.assertEqual(reward, 1)
                 self.assertTrue(done)
 
-    def test_solved_state_detection_changes_after_a_move(self):
+    def test_solved_state_detection_matches_observation_predicate(self):
         self.assertTrue(self.env.isSolved())
-        self.env.step(0)
-        self.assertFalse(self.env.isSolved())
+        self.assertTrue(is_solved_observation(self.env.color_vector))
+        for action in range(self.env.action_space.n):
+            with self.subTest(action=action):
+                self.env.reset()
+                observation, _, _, _ = self.env.step(action)
+                self.assertEqual(
+                    self.env.isSolved(), is_solved_observation(observation)
+                )
 
     def test_random_move_sequence_and_its_inverse_restore_state(self):
         rng = np.random.RandomState(2026)
