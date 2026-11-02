@@ -19,9 +19,9 @@ Environment code may retain internal state needed to execute transitions, but th
 
 ## State legality gate
 
-Before a generated observation is accepted into a training or evaluation dataset, run `validate_cube_state`. It checks color counts, center orientation, corner and edge piece uniqueness, orientation sums, and permutation parity. The upstream integration test exercises the validator against long random walks containing all action families, including middle-slice turns.
+Before a generated observation is accepted into a training or evaluation dataset, run `validate_cube_state`. It checks color counts, center orientation, corner and edge piece uniqueness, orientation sums, and permutation parity. **This gate is not currently trustworthy for the full 18-action environment:** CI has found reachable random-walk states involving middle-slice actions that the current center-normalization model rejects. Resolve this mismatch and get the upstream random-walk integration green before using the validator to admit training data.
 
-The validator canonicalizes the 24 possible rigid cube orientations because upstream middle-slice moves rotate center stickers. It does not certify that a state was sampled uniformly or that a scramble depth equals shortest solution distance.
+The validator currently canonicalizes the 24 possible rigid cube orientations. That is insufficient for all center arrangements produced by the upstream middle-slice transitions; this is an active correctness issue, not a property to work around by disabling validation. The validator does not certify that a state was sampled uniformly or that a scramble depth equals shortest solution distance.
 
 ## Curriculum experiments
 
