@@ -6,8 +6,8 @@
 
 ZeroMethod aims to develop a cube-solving agent that learns the mechanics of the cube from its environment rather than being given a human solving method such as CFOP or Roux. Speed is a major goal, but solving ability and generalization come first.
 
-> **Project status: Environment infrastructure.**  
-> The repository includes a dependency-free environment adapter, a stable 18-action API, a seeded random-walk state generator, observation-integrity checks, a fixed-center cubie validator for outer-face-only states, unit tests, and GitHub Actions CI. No trained agent or solver is available yet.
+> **Project status: Environment and baseline infrastructure.**  
+> The repository includes a dependency-free environment adapter, a stable 18-action API, seeded episode initialization, an episode runner, observation-integrity checks, two random-policy baselines, unit tests, and GitHub Actions CI. No trained agent or solver is available yet.
 
 ## Project goals
 
@@ -61,6 +61,16 @@ python -m zeromethod.experiments.random_baseline --episodes 100 --depth 10 --max
 ```
 
 The command prints a JSON report with success rate, episode outcomes, agent steps, reward, policy-call count, policy latency, and elapsed time. The baseline samples uniformly from all 18 actions, including inverse moves. It is intentionally unoptimized. Scramble and policy seeds are derived independently from the master seed. Scramble depth must be positive to avoid counting solved resets as successes.
+
+## Random-policy baseline v2
+
+Run the second baseline from the repository root:
+
+```bash
+python -m zeromethod.experiments.random_baseline_v2 --episodes 100 --depth 10 --max-agent-steps 100 --seed 42
+```
+
+Unlike v1, v2 excludes the inverse of its immediately preceding action. The first action is selected from all 18 actions; later actions are selected uniformly from the remaining 17. It remains a random policy: it does not inspect the cube state, plan ahead, or prevent longer cycles. Both baselines share the same per-episode policy seed namespace so their first random choice is paired for the same master seed.
 
 ## Environment validation
 
