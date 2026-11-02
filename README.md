@@ -4,8 +4,8 @@
 
 ZeroMethod aims to develop a cube-solving agent that learns the mechanics of the cube from its environment rather than being given a human solving method such as CFOP or Roux. Speed is a major goal, but solving ability and generalization come first.
 
-> **Project status: Early setup / environment validation.**  
-> The repository currently contains the environment dependency. No trained agent or solver is available yet.
+> **Project status: Environment validation.**  
+> The repository contains the environment dependency and its first contract tests. No trained agent or solver is available yet.
 
 ## Project goals
 
@@ -27,9 +27,13 @@ The upstream environment currently provides:
 | Observation | 54 sticker values |
 | Action space | 18 discrete actions |
 | Reward | +1 when the cube is solved; otherwise 0 |
-| Rendering | Optional; should be disabled during training |
+| Rendering | Optional; not required for training |
 
-The 18 actions include layer and middle-slice turns. The action model and state transitions still need to be validated before training begins.
+The 18 actions include outer-layer and middle-slice turns. Their permutations and inverse relationships are covered by the initial validation tests.
+
+### Compatibility note
+
+GymRubiksCube uses the legacy Gym API: `reset()` returns an observation, and `step()` returns four values. Its setup file also pins older dependency versions. Compatibility with newer Python, NumPy, and Gym releases has not yet been established. Do not assume the upstream pinned dependencies will install cleanly in a modern Kaggle runtime; dependency compatibility is a separate validation task.
 
 ## Clone
 
@@ -46,9 +50,30 @@ If you already cloned the repository without its submodule:
 git submodule update --init --recursive
 ```
 
+## Environment validation
+
+The first test suite checks the upstream environment's basic contract without opening its graphical renderer.
+
+Once the upstream environment's dependencies are installed, run:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+The tests currently verify:
+
+- Reset produces a solved 54-sticker state.
+- Each of the 18 actions is accepted and preserves nine stickers of each color.
+- Every action's sticker permutation is a bijection.
+- Each documented inverse-action pair restores the solved state.
+- Applying any quarter-turn action four times restores the solved state.
+- Solved-state detection and terminal reward behavior work as expected.
+
+These are environment integrity checks, not proof that every physically reachable cube state is represented correctly. Further legality and compatibility checks are still required.
+
 ## Planned development
 
-1. **Environment validation** — verify reset, all legal actions, inverse moves, solved-state detection, and cube-state invariants.
+1. **Environment validation** — establish reliable state, action, and reward behavior.
 2. **Environment adapter** — isolate the upstream environment behind a ZeroMethod interface.
 3. **Baseline experiments** — benchmark environment throughput and establish reproducible evaluation.
 4. **Agent experiments** — investigate learning approaches without injecting human solving algorithms.
@@ -66,6 +91,8 @@ git submodule update --init --recursive
 
 ```text
 ZeroMethod/
+├── tests/
+│   └── test_environment.py
 ├── third_party/
 │   └── GymRubiksCube/   # Upstream environment (Git submodule)
 ├── .gitmodules
@@ -73,7 +100,7 @@ ZeroMethod/
 └── README.md
 ```
 
-The project structure will expand as the environment adapter, validation tests, experiments, and agent implementation are added.
+The repository will expand as the environment adapter, experiments, and agent implementation are added.
 
 ## License
 
