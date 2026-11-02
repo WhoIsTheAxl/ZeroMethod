@@ -89,6 +89,8 @@ class TestGymRubiksCubeAdapter(unittest.TestCase):
             [0] * 53,
             [0] * 54,
             [color for color in range(6) for _ in range(9)][:-1] + [6],
+            [0.5] + [color for color in range(6) for _ in range(9)][1:],
+            ["0"] + [color for color in range(6) for _ in range(9)][1:],
         ):
             with self.subTest(length=len(observation)):
                 with self.assertRaises(ValueError):
