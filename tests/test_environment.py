@@ -32,12 +32,12 @@ INVERSE_ACTION_PAIRS = (
 
 # Independent facelet geometry: face blocks are U, F, R, B, L, D.
 _FACE_NORMALS = (
-    (0, 1, 0),
     (0, 0, 1),
-    (1, 0, 0),
-    (0, 0, -1),
-    (-1, 0, 0),
     (0, -1, 0),
+    (1, 0, 0),
+    (0, 1, 0),
+    (-1, 0, 0),
+    (0, 0, -1),
 )
 
 
