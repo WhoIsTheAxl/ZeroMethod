@@ -52,6 +52,16 @@ If you already cloned the repository without its submodule:
 git submodule update --init --recursive
 ```
 
+## Random-policy baseline
+
+Run a reproducible uniform-random baseline from the repository root after installing the upstream environment dependencies:
+
+```bash
+python -m zeromethod.experiments.random_baseline --episodes 100 --depth 10 --max-agent-steps 100 --seed 42
+```
+
+The command prints a JSON report with success rate, episode outcomes, agent steps, reward, policy-call count, policy latency, and elapsed time. The baseline samples uniformly from all 18 actions, including inverse moves. It is intentionally unoptimized. Scramble and policy seeds are derived independently from the master seed. Scramble depth must be positive to avoid counting solved resets as successes.
+
 ## Environment validation
 
 The test suite has four layers:
