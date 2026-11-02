@@ -1,0 +1,3 @@
+[submodule "third_party/GymRubiksCube"]
+	path = third_party/GymRubiksCube
+	url = https://github.com/mgroling/GymRubiksCube.git
