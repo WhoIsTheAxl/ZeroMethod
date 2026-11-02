@@ -7,7 +7,7 @@
 ZeroMethod aims to develop a cube-solving agent that learns the mechanics of the cube from its environment rather than being given a human solving method such as CFOP or Roux. Speed is a major goal, but solving ability and generalization come first.
 
 > **Project status: First DQN training implementation.**  
-> The repository includes the validated environment adapter, three reference baselines, a 324-feature one-hot state encoder, replay buffer, PyTorch DQN agent, sparse-reward curriculum trainer, unit tests, and GitHub Actions CI. Training is experimental; no successful general-purpose solver has been demonstrated.
+> The repository includes the validated environment adapter, three reference baselines, a 324-feature one-hot state encoder, replay buffer, PyTorch DQN agent, sparse-reward curriculum trainer, single-attempt solve recorder/benchmark, unit tests, and GitHub Actions CI. Training is experimental; no successful general-purpose solver has been demonstrated.
 
 ## Project goals
 
@@ -103,6 +103,26 @@ PYTHONPATH=third_party/GymRubiksCube python -m zeromethod.training.dqn \\
 ```
 
 The trainer uses one GPU by default even when two are available. Evaluation uses a separate deterministic seed namespace and greedy actions; evaluation transitions are not inserted into replay. Checkpoints contain online/target network weights, optimizer state, and experiment metadata. The first implementation does not yet support resuming replay-buffer state.
+
+## Single-solve benchmark and replay
+
+To run one trained DQN checkpoint on a reproducible scramble and capture exactly what it did:
+
+```bash
+PYTHONPATH=third_party/GymRubiksCube python -m zeromethod.evaluation.solver_benchmark \\
+  --checkpoint artifacts/dqn_curriculum_v1.pt \\
+  --depth 3 --seed 42 --max-agent-steps 100 --device cuda:0
+```
+
+The command prints a JSON solve report containing:
+
+- Environment-verified success and agent move count.
+- Scramble setup time, solving time, and total runtime.
+- Total and mean policy inference latency, separately from environment transition time.
+- Ordered action identifiers and per-move timing.
+- The initial observation plus every intermediate cube observation, allowing a complete state replay.
+
+All durations use a monotonic nanosecond clock. Solving time excludes scramble construction; inference time excludes the environment transition. Action identifiers preserve the upstream action enum and do not assume unverified Singmaster notation. For reliable performance comparisons, repeat across independent seeds on the same hardware and environment version.
 
 ## Environment validation
 
