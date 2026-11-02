@@ -8,6 +8,7 @@ Cubie tables are expressed in the conventional Kociemba U,R,F,D,L,B
 orientation and remapped to the upstream facelet layout.
 """
 
+from itertools import permutations, product
 from operator import index
 from typing import Iterable, Tuple
 
@@ -15,6 +16,98 @@ from typing import Iterable, Tuple
 # Convert a conventional facelet index (U,R,F,D,L,B) into the upstream
 # observation layout (U,F,R,B,L,D).
 _STANDARD_TO_UPSTREAM_FACE = (0, 18, 9, 45, 36, 27)
+
+# Face order in the upstream observation: U, F, R, B, L, D.
+_FACE_NORMALS = (
+    (0, 1, 0),
+    (0, 0, 1),
+    (1, 0, 0),
+    (0, 0, -1),
+    (-1, 0, 0),
+    (0, -1, 0),
+)
+_COLOR_NORMALS = _FACE_NORMALS
+_CENTER_FACELETS = (4, 13, 22, 31, 40, 49)
+
+
+def _facelet_geometry():
+    geometry = []
+    for face in range(6):
+        for row in range(3):
+            for column in range(3):
+                if face == 0:       # U: viewed from above, back to front
+                    position = (column - 1, 1, row - 1)
+                elif face == 1:     # F: viewed from front
+                    position = (column - 1, 1 - row, 1)
+                elif face == 2:     # R: viewed from right, front to back
+                    position = (1, 1 - row, 1 - column)
+                elif face == 3:     # B: viewed from back
+                    position = (1 - column, 1 - row, -1)
+                elif face == 4:     # L: viewed from left, back to front
+                    position = (-1, 1 - row, column - 1)
+                else:               # D: viewed from below, front to back
+                    position = (column - 1, -1, 1 - row)
+                geometry.append((position, _FACE_NORMALS[face]))
+    return tuple(geometry)
+
+
+_FACELET_GEOMETRY = _facelet_geometry()
+_FACELET_BY_GEOMETRY = {
+    geometry: index for index, geometry in enumerate(_FACELET_GEOMETRY)
+}
+
+
+def _rotation_matrices():
+    matrices = []
+    for axes in permutations((0, 1, 2)):
+        inversions = sum(
+            axes[i] > axes[j]
+            for i in range(3)
+            for j in range(i + 1, 3)
+        )
+        permutation_sign = -1 if inversions % 2 else 1
+        for signs in product((-1, 1), repeat=3):
+            if permutation_sign * signs[0] * signs[1] * signs[2] == 1:
+                matrices.append((axes, signs))
+    return tuple(matrices)
+
+
+_ROTATIONS = _rotation_matrices()
+
+
+def _rotate_vector(vector, rotation):
+    axes, signs = rotation
+    return tuple(signs[i] * vector[axes[i]] for i in range(3))
+
+
+def _canonicalize_frame(state):
+    """Rotate a valid center arrangement into the canonical color frame."""
+    current_normals = [None] * 6
+    for face, center_index in enumerate(_CENTER_FACELETS):
+        color = state[center_index]
+        if color < 0 or color > 5 or current_normals[color] is not None:
+            raise ValueError("center stickers must contain each color exactly once")
+        current_normals[color] = _FACE_NORMALS[face]
+
+    for rotation in _ROTATIONS:
+        if all(
+            _rotate_vector(current_normals[color], rotation)
+            == _COLOR_NORMALS[color]
+            for color in range(6)
+        ):
+            canonical = [None] * 54
+            for source, (position, normal) in enumerate(_FACELET_GEOMETRY):
+                target_geometry = (
+                    _rotate_vector(position, rotation),
+                    _rotate_vector(normal, rotation),
+                )
+                target = _FACELET_BY_GEOMETRY.get(target_geometry)
+                if target is None:
+                    raise ValueError("cube orientation did not map facelets correctly")
+                canonical[target] = state[source]
+            return tuple(canonical)
+
+    raise ValueError("center arrangement is not a rigid cube orientation")
 
 
 def _facelet(standard_index: int) -> int:
@@ -108,7 +201,9 @@ def validate_cube_state(observation: Iterable[int]) -> None:
     if counts != (9, 9, 9, 9, 9, 9):
         raise ValueError("each sticker color must occur exactly nine times")
 
-    centers = (4, 13, 22, 31, 40, 49)
+    state = _canonicalize_frame(state)
+
+    centers = _CENTER_FACELETS
     if tuple(state[position] for position in centers) != (0, 1, 2, 3, 4, 5):
         raise ValueError("center colors or face orientation do not match the solved frame")
 
