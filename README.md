@@ -57,10 +57,16 @@ The test suite has two layers:
 - **Dependency-free core tests:** validate ZeroMethod's adapter using a fake environment. These run on modern Python without Gym, NumPy, pygame, or the upstream submodule's dependencies.
 - **Upstream integration tests:** validate the pinned GymRubiksCube implementation without opening its graphical renderer.
 
-The upstream project was tested with Python 3.8.10. Its setup file pins older versions of NumPy, Gym, and other packages, so installation may fail on newer Python runtimes. In a compatible environment, install the submodule in editable mode:
+The upstream project was originally tested with Python 3.8.10 and pins older dependency versions. CI currently validates it with a separate, explicitly pinned compatibility stack on Python 3.10 rather than installing the upstream package metadata (which contains an invalid legacy Gym dependency specifier). The integration job installs:
 
 ```bash
-python -m pip install -e third_party/GymRubiksCube
+python -m pip install numpy==1.23.5 numba==0.57.1 pygame==2.5.2 Pillow==10.0.1 scipy==1.10.1 gym==0.25.2
+```
+
+Then expose the submodule on the import path when running the upstream tests:
+
+```bash
+PYTHONPATH=third_party/GymRubiksCube python -m unittest discover -s tests -p "test_environment.py" -v
 ```
 
 Run the dependency-free adapter tests from the repository root on any supported Python 3 version:
@@ -72,12 +78,12 @@ python -m unittest discover -s tests -p "test_adapter.py" -v
 Then run the complete upstream integration suite in the compatible environment:
 
 ```bash
-python -m unittest discover -s tests -v
+PYTHONPATH=third_party/GymRubiksCube python -m unittest discover -s tests -p "test_environment.py" -v
 ```
 
 The upstream integration tests currently verify:
 
-- Reset produces a solved 54-sticker state:
+- Reset produces a solved 54-sticker state.
 - Each of the 18 actions is accepted and preserves nine stickers of each color.
 - Every action's sticker permutation is a bijection.
 - Each documented inverse-action pair restores the solved state.
@@ -94,7 +100,7 @@ The dependency-free adapter tests verify:
 - Invalid action types, out-of-range actions, and malformed observations are rejected.
 - Closing the adapter delegates to the wrapped environment.
 
-GitHub Actions runs the dependency-free tests on Python 3.12 and the upstream integration suite on Python 3.8.
+GitHub Actions runs the dependency-free tests on Python 3.12 and the upstream integration suite on Python 3.10.
 
 See [the environment architecture](docs/architecture.md) and [training/evaluation protocol](docs/training_protocol.md) for design constraints.
 
