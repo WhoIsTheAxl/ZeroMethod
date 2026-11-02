@@ -15,7 +15,7 @@ The agent must not receive:
 - A precomputed solution.
 - Human solving demonstrations or named human methods.
 
-Environment code may retain internal state needed to execute transitions, but the training interface must not expose hidden scramble metadata.
+Environment code may retain internal state needed to execute transitions, but the training interface must not expose hidden scramble metadata. The seeded random-walk generator returns only the resulting immutable observation; it does not attach the generated action sequence.
 
 ## Curriculum experiments
 
@@ -27,7 +27,9 @@ Training curriculum examples:
 3. three-move states
 4. progressively deeper states
 
-Keep a record of the state-generation method and random seed for every experiment. Avoid allowing the agent to observe the generating sequence.
+The generator accepts an explicit seed. Recreate it with the same seed to reproduce its sequence of generated observations. Use derive_split_seed(master_seed, split_name) to derive stable, distinct seeds for training, validation, and evaluation. Record the master seed, split name, derived seed, and depth schedule for every experiment.
+
+The generator avoids immediately selecting the inverse of the previous action. This reduces trivial two-step cancellations but does not make random walks uniform or guarantee a particular state's shortest-path distance.
 
 ## Evaluation separation
 
@@ -35,7 +37,7 @@ Final evaluation must use independently generated randomized cube states that we
 
 Random action walks are useful for controlled curriculum experiments, but they are not automatically uniform samples from the cube state space. Do not label a fixed-length random walk as a uniform random-state benchmark.
 
-Maintain separate training, validation, and final test sets. The final test set must remain untouched until a model/configuration is frozen.
+Maintain separate training, validation, and final test sets. Derive and record a different seed for each split. The final test set must remain untouched until a model/configuration is frozen.
 
 ## Metrics
 
@@ -54,9 +56,10 @@ Each experiment should record:
 - source commit
 - environment and dependency versions
 - algorithm and hyperparameters
-- random seeds
+- master and derived random seeds
 - training-state generation procedure
 - evaluation-state generation procedure
+- scramble depth distribution
 - hardware/runtime details
 - metrics and raw result files
 
@@ -65,3 +68,5 @@ Each experiment should record:
 The upstream GymRubiksCube environment uses 18 actions, including middle slices. Before reporting move efficiency, ZeroMethod must define whether this action set is retained or mapped to a conventional move metric.
 
 The current upstream reward is sparse: +1 for solved and 0 otherwise. Any future reward shaping must be documented and reviewed to ensure it does not encode a human solving method or leak solution information.
+
+The current state generator produces random walks from the solved state. It is a reproducible generator for controlled experiments, not an independently verified uniform sampler over legal cube states. Corner/edge orientation and permutation invariants still need independent validation before this generator is used for benchmark claims.
