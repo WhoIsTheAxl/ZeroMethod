@@ -48,10 +48,8 @@ class TestCubeStateLegality(unittest.TestCase):
 
     def test_rejects_two_edge_swap_without_corner_swap(self):
         state = list(SOLVED)
-        first = (5, 19)  # UR and UF facelets
-        second = (10, 7)
-        state[first[0]], state[second[0]] = state[second[0]], state[first[0]]
-        state[first[1]], state[second[1]] = state[second[1]], state[first[1]]
+        state[5], state[7] = state[7], state[5]
+        state[19], state[10] = state[10], state[19]
         with self.assertRaisesRegex(ValueError, "permutation parity"):
             validate_cube_state(state)
 
