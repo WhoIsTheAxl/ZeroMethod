@@ -34,21 +34,15 @@ The upstream environment uses the legacy Gym API, where `done` combines successf
 - solved state: `terminated=True`
 - upstream done while unsolved: `truncated=True`
 
-## Independent cube-state legality
+## Observation integrity and cube-state legality
 
-`validate_cube_state(observation)` checks more than sticker counts. It verifies:
+`validate_observation(observation)` is the integrity check for the full upstream 18-action environment. It verifies exactly 54 integer stickers, values in 0..5, and exactly nine occurrences of each color.
 
-- exactly 54 integer stickers and nine of each color
-- one of each center color, in an arrangement equivalent to a rigid cube orientation
-- all eight corner cubies appear exactly once
-- corner twist sum is divisible by three
-- all twelve edge cubies appear exactly once
-- edge flip sum is even
-- corner and edge permutation parity match
+`validate_cube_state(observation)` is a stronger conventional fixed-center validator. It additionally checks corner/edge identity, orientation sums, and permutation parity after canonicalizing rigid whole-cube orientations. **It is not a reachability validator for the complete 18-action action set.**
 
-The upstream environment allows middle-slice turns, which move center stickers. Therefore the validator first canonicalizes the observed center orientation using one of the 24 proper cube rotations, then checks the fixed-center cubie invariants. It rejects center arrangements that cannot be explained by a rigid cube rotation.
+The distinction matters because GymRubiksCube exposes E, S, and M middle-slice turns that physically relocate center stickers while leaving the corner layer in place. These transitions are valid in the upstream environment but take the state outside the fixed-center representation assumed by ordinary cubie invariants. A rigid orientation normalization cannot undo that relative center permutation. CI previously demonstrated this mismatch across a 1,000-action walk; this was a validator-scope bug, not evidence that the environment generated invalid observations.
 
-This is a fixed-frame physical-state validator, not a solver and not a uniform state sampler. **Known blocker:** the current 1,000-action upstream walk exposes that the validator's center-frame normalization is insufficient for states reached through the upstream middle-slice actions. CI currently fails on reachable states late in that walk. Do not use this validator as a dataset gate until its invariants are reconciled with the environment's movable-center representation.
+For full-action training data, use the environment's own transition process as the reachability provenance and `validate_observation` as the data-integrity check. Do not describe the weaker observation check as proof of physical reachability. The stronger fixed-center validator remains useful for outer-face-only experiments and deliberately constructed invalid-state tests.
 
 ## State generation boundary
 
@@ -68,7 +62,7 @@ ZeroMethod now exposes a project-owned `Action` enum with stable values matching
 
 ## Dependency boundaries
 
-The adapter, action interface, state generator, legality validator, and their unit tests use only the Python standard library. The upstream integration tests require the legacy environment's pinned stack. The core action-interface tests pass in CI; the upstream random-walk legality integration currently fails and is a blocker before dataset generation or training.
+The adapter, action interface, state generator, observation validator, fixed-center cubie validator, and their unit tests use only the Python standard library. The upstream integration tests require the legacy environment's pinned stack. The upstream full-action walk checks observation integrity, while fixed-center cubie invariants are tested separately using outer-face actions.
 
 ## Next architectural milestones
 
