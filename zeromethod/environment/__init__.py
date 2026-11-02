@@ -1,6 +1,7 @@
 """Environment interfaces and adapters."""
 
 from .adapter import GymRubiksCubeAdapter, StepResult
+from .factory import make_environment
 from .actions import ACTION_COUNT, INVERSE_ACTIONS, Action, inverse_action
 from .state_generation import RandomWalkStateGenerator, derive_split_seed
 from .state_legality import (
@@ -12,6 +13,7 @@ from .state_legality import (
 
 __all__ = [
     "GymRubiksCubeAdapter",
+    "make_environment",
     "StepResult",
     "Action",
     "ACTION_COUNT",
