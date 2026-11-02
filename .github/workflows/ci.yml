@@ -47,6 +47,8 @@ jobs:
         run: python -m unittest discover -s tests -p "test_state_encoding.py" -v
       - name: Run replay-buffer tests
         run: python -m unittest discover -s tests -p "test_replay_buffer.py" -v
+      - name: Run solver benchmark tests
+        run: python -m unittest discover -s tests -p "test_solver_benchmark.py" -v
 
   environment-tests:
     name: Upstream environment tests (Python 3.10)
