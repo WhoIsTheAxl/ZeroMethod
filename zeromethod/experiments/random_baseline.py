@@ -1,12 +1,12 @@
-"""Uniform-random policy baseline and reproducible evaluation report."""
+"""Random-policy baselines and reproducible evaluation reports."""
 import argparse
 from dataclasses import asdict, dataclass
 import json
 from random import Random
 from time import perf_counter
-from typing import Tuple
+from typing import Callable, Tuple
 
-from zeromethod.environment.actions import ACTION_COUNT
+from zeromethod.environment.actions import ACTION_COUNT, inverse_action
 from zeromethod.environment.factory import make_environment
 from zeromethod.environment.runner import EpisodeResult, EpisodeRunner
 from zeromethod.environment.state_generation import derive_split_seed
@@ -14,6 +14,8 @@ from zeromethod.environment.state_generation import derive_split_seed
 
 class RandomPolicy:
     """Choose uniformly from all 18 actions; inverse moves are not filtered."""
+
+    name = "uniform_random_18_actions"
 
     def __init__(self, seed: int):
         if isinstance(seed, bool) or not isinstance(seed, int):
@@ -25,6 +27,38 @@ class RandomPolicy:
     def __call__(self, observation: Tuple[int, ...]) -> int:
         start = perf_counter()
         action = self._rng.randrange(ACTION_COUNT)
+        self.policy_seconds += perf_counter() - start
+        self.policy_calls += 1
+        return action
+
+
+class NoImmediateInverseRandomPolicy:
+    """Choose uniformly at random, excluding the previous action's inverse.
+
+    The first decision samples from all 18 actions. Every later decision
+    samples from the remaining 17 actions. This only prevents a one-step
+    undo; it does not reason about cube state or prevent longer cycles.
+    """
+
+    name = "uniform_random_no_immediate_inverse"
+
+    def __init__(self, seed: int):
+        if isinstance(seed, bool) or not isinstance(seed, int):
+            raise TypeError("seed must be an integer")
+        self._rng = Random(seed)
+        self._previous_action = None
+        self.policy_calls = 0
+        self.policy_seconds = 0.0
+
+    def __call__(self, observation: Tuple[int, ...]) -> int:
+        start = perf_counter()
+        if self._previous_action is None:
+            action = self._rng.randrange(ACTION_COUNT)
+        else:
+            forbidden = inverse_action(self._previous_action)
+            candidate = self._rng.randrange(ACTION_COUNT - 1)
+            action = candidate if candidate < forbidden else candidate + 1
+        self._previous_action = action
         self.policy_seconds += perf_counter() - start
         self.policy_calls += 1
         return action
@@ -55,8 +89,6 @@ class BaselineReport:
     def to_dict(self):
         """Return a JSON-serializable representation."""
         data = asdict(self)
-        # Keep reports compact; final sticker arrays are available in the
-        # in-memory EpisodeResult objects but are not benchmark metrics.
         data["episode_results"] = [
             {
                 "total_reward": result.total_reward,
@@ -70,21 +102,16 @@ class BaselineReport:
         return data
 
 
-def evaluate_random_baseline(
+def _evaluate_policy_baseline(
     env,
     *,
+    policy_factory: Callable[[int], Callable],
+    policy_name: str,
     episodes: int,
     scramble_depth: int,
     max_agent_steps: int,
     master_seed: int,
 ) -> BaselineReport:
-    """Evaluate independent seeded uniform-random policies on seeded starts.
-
-    Each episode receives separate deterministic seeds for its scramble and
-    policy. The environment is reused and reset by EpisodeRunner. Scramble
-    depth must be positive so the benchmark never counts solved resets as
-    random-policy successes.
-    """
     for name, value, minimum in (
         ("episodes", episodes, 1),
         ("scramble_depth", scramble_depth, 1),
@@ -108,9 +135,9 @@ def evaluate_random_baseline(
             master_seed, "random-baseline-scramble-{}".format(episode_index)
         )
         policy_seed = derive_split_seed(
-            master_seed, "random-baseline-policy-{}".format(episode_index)
+            master_seed, "{}-policy-{}".format(policy_name, episode_index)
         )
-        policy = RandomPolicy(policy_seed)
+        policy = policy_factory(policy_seed)
         result = runner.run(
             policy,
             depth=scramble_depth,
@@ -128,7 +155,7 @@ def evaluate_random_baseline(
     success_steps = [result.agent_steps for result in results if result.success]
 
     return BaselineReport(
-        policy="uniform_random_18_actions",
+        policy=policy_name,
         master_seed=master_seed,
         episodes=episodes,
         scramble_depth=scramble_depth,
@@ -152,8 +179,40 @@ def evaluate_random_baseline(
     )
 
 
-def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__)
+def evaluate_random_baseline(
+    env, *, episodes: int, scramble_depth: int,
+    max_agent_steps: int, master_seed: int,
+) -> BaselineReport:
+    """Evaluate the unfiltered uniform-random reference policy."""
+    return _evaluate_policy_baseline(
+        env,
+        policy_factory=RandomPolicy,
+        policy_name=RandomPolicy.name,
+        episodes=episodes,
+        scramble_depth=scramble_depth,
+        max_agent_steps=max_agent_steps,
+        master_seed=master_seed,
+    )
+
+
+def evaluate_no_inverse_baseline(
+    env, *, episodes: int, scramble_depth: int,
+    max_agent_steps: int, master_seed: int,
+) -> BaselineReport:
+    """Evaluate uniform random actions while forbidding immediate inverses."""
+    return _evaluate_policy_baseline(
+        env,
+        policy_factory=NoImmediateInverseRandomPolicy,
+        policy_name=NoImmediateInverseRandomPolicy.name,
+        episodes=episodes,
+        scramble_depth=scramble_depth,
+        max_agent_steps=max_agent_steps,
+        master_seed=master_seed,
+    )
+
+
+def _run_cli(evaluator, description: str, argv=None):
+    parser = argparse.ArgumentParser(description=description)
     parser.add_argument("--episodes", type=int, default=100)
     parser.add_argument("--depth", type=int, default=10)
     parser.add_argument("--max-agent-steps", type=int, default=100)
@@ -162,7 +221,7 @@ def main(argv=None):
 
     env = make_environment(max_steps=None)
     try:
-        report = evaluate_random_baseline(
+        report = evaluator(
             env,
             episodes=args.episodes,
             scramble_depth=args.depth,
@@ -172,6 +231,10 @@ def main(argv=None):
         print(json.dumps(report.to_dict(), indent=2, sort_keys=True))
     finally:
         env.close()
+
+
+def main(argv=None):
+    _run_cli(evaluate_random_baseline, __doc__, argv)
 
 
 if __name__ == "__main__":
