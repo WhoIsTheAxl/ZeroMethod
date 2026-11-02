@@ -7,7 +7,7 @@
 ZeroMethod aims to develop a cube-solving agent that learns the mechanics of the cube from its environment rather than being given a human solving method such as CFOP or Roux. Speed is a major goal, but solving ability and generalization come first.
 
 > **Project status: Environment infrastructure.**  
-> The repository now includes a dependency-free adapter, adapter contract tests, and CI. Both the adapter suite (8 tests) and upstream environment suite (9 tests) have passed in GitHub Actions. No trained agent or solver is available yet.
+> The repository includes a dependency-free environment adapter, a seeded random-walk state generator, unit tests, and GitHub Actions CI. The adapter and upstream integration suites previously passed; the new state-generation suite is now included in CI and is awaiting its run. No trained agent or solver is available yet.
 
 ## Project goals
 
@@ -54,9 +54,10 @@ git submodule update --init --recursive
 
 ## Environment validation
 
-The test suite has two layers:
+The test suite has three layers:
 
-- **Dependency-free core tests:** validate ZeroMethod's adapter using a fake environment. These run on modern Python without Gym, NumPy, pygame, or the upstream submodule's dependencies.
+- **Dependency-free adapter tests:** validate the adapter using a fake environment.
+- **Dependency-free state-generation tests:** validate deterministic random walks and split-seed derivation.
 - **Upstream integration tests:** validate the pinned GymRubiksCube implementation without opening its graphical renderer.
 
 The upstream project was originally tested with Python 3.8.10 and pins older dependency versions. CI currently validates it with a separate, explicitly pinned compatibility stack on Python 3.10 rather than installing the upstream package metadata (which contains an invalid legacy Gym dependency specifier). The integration job installs:
@@ -71,16 +72,11 @@ Then expose the submodule on the import path when running the upstream tests:
 PYTHONPATH=third_party/GymRubiksCube python -m unittest discover -s tests -p "test_environment.py" -v
 ```
 
-Run the dependency-free adapter tests from the repository root on any supported Python 3 version:
+Run the dependency-free tests from the repository root on any supported Python 3 version:
 
 ```bash
 python -m unittest discover -s tests -p "test_adapter.py" -v
-```
-
-Then run the complete upstream integration suite in the compatible environment:
-
-```bash
-PYTHONPATH=third_party/GymRubiksCube python -m unittest discover -s tests -p "test_environment.py" -v
+python -m unittest discover -s tests -p "test_state_generation.py" -v
 ```
 
 The upstream integration tests currently verify:
@@ -94,13 +90,15 @@ The upstream integration tests currently verify:
 
 These are environment integrity checks, not proof that every physically reachable cube state is represented correctly. Further legality and compatibility checks are still required.
 
-The dependency-free adapter tests verify:
+The state-generation tests verify:
 
-- Legacy reset/step results are normalized to a stable interface.
-- Observations are immutable 54-sticker tuples with valid color counts.
-- Solved states are terminations; unsolved episode limits are truncations.
-- Invalid action types, out-of-range actions, and malformed observations are rejected.
-- Closing the adapter delegates to the wrapped environment.
+- The same seed reproduces the same sequence of observations.
+- Split seeds are stable and distinct for training, validation, and evaluation.
+- Generated observations contain only 54 stickers with nine of each color.
+- The generated observation does not carry scramble-history metadata.
+- Invalid depth and inverse-action maps are rejected.
+
+The generator uses a seeded random walk from the solved state and avoids immediately applying the previous action's inverse. It does not yet prove full Rubik's Cube legality or sample uniformly from the state space. Those are separate validation tasks.
 
 GitHub Actions runs the dependency-free tests on Python 3.12 and the upstream integration suite on Python 3.10.
 
@@ -110,10 +108,10 @@ See [the environment architecture](docs/architecture.md) and [training/evaluatio
 
 1. **Environment validation** — establish reliable state, action, and reward behavior.
 2. **Environment adapter** — isolate the upstream environment behind a ZeroMethod interface.
-3. **Baseline experiments** — benchmark environment throughput and establish reproducible evaluation.
-4. **Agent experiments** — investigate learning approaches without injecting human solving algorithms.
-5. **Generalization tests** — evaluate on independent randomized states not used during training.
-6. **Performance work** — measure inference latency and solution quality separately.
+3. **State generation and legality** — independently validate cubie invariants and define evaluation sampling.
+4. **Baseline experiments** — benchmark environment throughput and establish reproducible evaluation.
+5. **Agent experiments** — investigate learning approaches without injecting human solving algorithms.
+6. **Generalization and performance** — evaluate on independent states and measure inference latency separately from solution quality.
 
 ## Training and evaluation principles
 
@@ -132,10 +130,12 @@ ZeroMethod/
 │   └── training_protocol.md
 ├── tests/
 │   ├── test_adapter.py
-│   └── test_environment.py
+│   ├── test_environment.py
+│   └── test_state_generation.py
 ├── zeromethod/
 │   └── environment/
-│       └── adapter.py
+│       ├── adapter.py
+│       └── state_generation.py
 ├── third_party/
 │   └── GymRubiksCube/   # Upstream environment (Git submodule)
 ├── .gitmodules
