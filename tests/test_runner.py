@@ -1,4 +1,5 @@
 """Tests for the bounded episode runner."""
+
 import unittest
 
 from zeromethod.environment.adapter import GymRubiksCubeAdapter
@@ -16,15 +17,14 @@ class RunnerFakeEnvironment:
         self.action_space = ActionSpace()
         self.max_steps = None
         self.state = SOLVED
-        self.solved = False
-        self.reset_solved = False
+        self.solved = True
         self.actions = []
         self.solve_action = 5
         self.reward_per_step = 0.25
 
     def reset(self):
         self.state = SOLVED
-        self.solved = self.reset_solved
+        self.solved = True
         self.actions = []
         return self.state
 
@@ -36,6 +36,7 @@ class RunnerFakeEnvironment:
             return self.state, 1.0, True, {}
         # Preserve the observation contract while remaining unsolved.
         self.state = self.state[1:] + self.state[:1]
+        self.solved = False
         return self.state, self.reward_per_step, False, {}
 
     def isSolved(self):
@@ -52,7 +53,7 @@ class TestEpisodeRunner(unittest.TestCase):
 
     def run_args(self, **overrides):
         args = {
-            "depth": 0,
+            "depth": 1,
             "seed": 42,
             "max_agent_steps": 10,
         }
@@ -62,6 +63,7 @@ class TestEpisodeRunner(unittest.TestCase):
     def test_policy_solves_and_result_counts_agent_actions_only(self):
         raw, runner = self.make_runner()
         seen = []
+
         def policy(observation):
             seen.append(observation)
             return 5
@@ -72,12 +74,14 @@ class TestEpisodeRunner(unittest.TestCase):
         self.assertFalse(result.truncated)
         self.assertEqual(result.agent_steps, 1)
         self.assertEqual(result.total_reward, 1.0)
-        self.assertEqual(raw.actions, [5])
+        self.assertEqual(len(raw.actions), 2)  # one scramble move + one agent move
+        self.assertEqual(raw.actions[-1], 5)
         self.assertEqual(len(seen), 1)
 
     def test_step_limit_truncates_without_extra_policy_call(self):
         raw, runner = self.make_runner()
         calls = []
+
         def policy(observation):
             calls.append(observation)
             return 1
@@ -90,11 +94,12 @@ class TestEpisodeRunner(unittest.TestCase):
         self.assertTrue(result.truncated)
         self.assertEqual(result.agent_steps, 3)
         self.assertEqual(len(calls), 3)
-        self.assertEqual(len(raw.actions), 3)
+        self.assertEqual(len(raw.actions), 4)  # one scramble move + three agent moves
+        self.assertEqual(raw.actions[-3:], [1, 1, 1])
         self.assertEqual(result.total_reward, 0.75)
 
     def test_zero_step_budget_returns_truncated(self):
-        _, runner = self.make_runner()
+        raw, runner = self.make_runner()
         result = runner.run(
             lambda observation: 1,
             **self.run_args(max_agent_steps=0),
@@ -102,10 +107,11 @@ class TestEpisodeRunner(unittest.TestCase):
         self.assertEqual(result.agent_steps, 0)
         self.assertTrue(result.truncated)
         self.assertFalse(result.success)
+        self.assertEqual(len(raw.actions), 1)  # scramble only
 
     def test_solved_initial_state_ends_without_policy_call(self):
-        raw, runner = self.make_runner()
-        raw.reset_solved = True
+        _, runner = self.make_runner()
+
         def forbidden_policy(observation):
             self.fail("policy must not run for an already-solved state")
 

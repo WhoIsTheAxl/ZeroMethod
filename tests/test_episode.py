@@ -108,6 +108,8 @@ class TestEpisodeInitialization(unittest.TestCase):
         self.assertEqual(a, b)
         self.assertEqual(raw_a.actions, raw_b.actions)
         self.assertEqual(len(raw_a.actions), 20)
+        for previous, current in zip(raw_a.actions, raw_a.actions[1:]):
+            self.assertNotEqual(current, int(INVERSE_ACTIONS[previous]))
         self.assertEqual(info_a, {})
         self.assertEqual(info_b, {})
 
@@ -120,6 +122,7 @@ class TestEpisodeInitialization(unittest.TestCase):
         self.assertEqual(actual, expected)
         self.assertEqual(info, {})
         self.assertEqual(len(raw.actions), depth)
+        self.assertEqual([actual.count(color) for color in range(6)], [9] * 6)
 
     def test_different_seed_changes_walk(self):
         raw_a, env_a = self.make_env()
