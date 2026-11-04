@@ -123,7 +123,7 @@ python -m unittest discover -s tests -p "test_state_legality.py" -v
 
 The upstream integration tests verify reset behavior, all 18 action transformations, inverse pairs, sticker integrity, and deterministic starting states across repeated and independent environments. These checks verify the environment contract; they are not proof that the random walk uniformly samples the full state space.
 
-The state-generation tests verify:
+The state-generation and episode-initialization tests verify:
 
 - The same seed reproduces the same observation sequence.
 - Split seeds are stable and distinct for training, validation, and evaluation.
