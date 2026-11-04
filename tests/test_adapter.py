@@ -12,6 +12,7 @@ class FakeActionSpace:
 class FakeEnvironment:
     def __init__(self):
         self.action_space = FakeActionSpace()
+        self.max_steps = None
         self.state = [color for color in range(6) for _ in range(9)]
         self.done = False
         self.reward = 0.0
@@ -47,6 +48,11 @@ class TestGymRubiksCubeAdapter(unittest.TestCase):
         self.assertIsInstance(observation, tuple)
         self.assertEqual(len(observation), 54)
         self.assertEqual(info, {})
+
+    def test_max_steps_is_exposed_without_reaching_through_adapter(self):
+        self.assertIsNone(self.env.max_steps)
+        self.raw_env.max_steps = 25
+        self.assertEqual(self.env.max_steps, 25)
 
     def test_step_returns_normalized_result(self):
         self.env.reset()

@@ -42,6 +42,11 @@ class GymRubiksCubeAdapter:
         if self.action_count <= 0:
             raise ValueError("environment must expose at least one action")
 
+    @property
+    def max_steps(self):
+        """Expose the configured upstream episode limit through the adapter."""
+        return getattr(self.env, "max_steps", None)
+
     @classmethod
     def _normalize_observation(cls, observation: Any) -> Tuple[int, ...]:
         try:

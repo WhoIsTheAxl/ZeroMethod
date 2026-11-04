@@ -4,29 +4,29 @@
 
 The agent receives only its current observation, legal action set, reward, and episode boundary. It must not receive scramble actions, reverse action lists, precomputed solutions, or human solving demonstrations.
 
-initialize_episode(env, depth, seed) constructs a starting state by replaying a seeded random walk through real environment transitions. It returns only the final observation and an empty info mapping. The action history is local to the initializer.
+`initialize_episode(env, depth, seed)` constructs a starting state by replaying a seeded random walk through real environment transitions. It returns only the final observation and an empty info mapping. The action history is local to the initializer and is never passed to the policy.
 
 ## Episode initialization constraints
 
-The upstream environment has no public arbitrary-state injection API. ZeroMethod avoids direct mutation of its internal cube state. It resets to solved and executes generated actions through the adapter.
+The pinned upstream environment has no public arbitrary-state injection API. In the inspected revision, `reset()` always reconstructs the solved color vector and `step()` applies a move through the environment transition function. ZeroMethod avoids assigning directly to upstream `color_vector` or other internal state.
 
-Create environments with make_environment(max_steps=None) when using initialize_episode. Upstream max_steps counts scramble-construction actions too. The episode runner enforces the agent's own step limit after initialization.
+Create environments with `make_environment(max_steps=None)` when using `initialize_episode`. Upstream `max_steps` counts scramble-construction actions too. The episode runner enforces the agent's own step limit after initialization.
 
-Depth is the number of actions replayed, not shortest-path distance. Immediate inverse pairs are excluded during scramble generation. For a fixed environment version, action mapping, depth, and seed reproduce the same walk. The info mapping intentionally contains no scramble metadata.
+The offline `RandomWalkStateGenerator` and live initializer share one private action sampler. For the same seed, depth, action mapping, and environment revision, they produce the same walk. Immediate inverse pairs are excluded. If an intermediate prefix solves the cube, that candidate is discarded and another candidate is drawn deterministically; this prevents calling upstream `step()` after it has terminated. A solve on the final requested action is allowed.
+
+Depth is the number of actions successfully replayed, not shortest-path distance. Random walks are not uniform samples of cube state space, and depth is not guaranteed optimal distance. The info mapping intentionally contains no scramble metadata.
 
 ## State integrity and reachability
 
-Observations must contain 54 integer stickers, values 0..5, and nine of each color. Reachability provenance comes from upstream transitions. The conventional fixed-center validator is not suitable for the full 18-action set because middle-slice turns relocate centers.
+Observations must contain 54 integer stickers, values 0..5, and nine of each color. Reachability provenance comes from real upstream transitions. The conventional fixed-center validator is not suitable for the full 18-action set because middle-slice turns relocate centers.
 
 ## Curriculum and reproducibility
 
-A staged curriculum may increase random-walk depth. Derive distinct training, validation, and evaluation seeds with derive_split_seed. Record source commit, environment/dependency versions, seeds, split, depth schedule, action set, EAC metric, algorithm, hyperparameters, runtime, and metrics.
-
-Random walks are not uniform samples of cube state space, and depth is not guaranteed optimal distance.
+A staged curriculum may increase random-walk depth. Derive distinct training, validation, and evaluation seeds with derive_split_seed. Record source commit, environment/submodule revision, dependency versions, seeds, split, depth schedule, action set, EAC metric, algorithm, hyperparameters, runtime, and metrics.
 
 ## Episode runner contract
 
-Use EpisodeRunner(env).run(policy, depth=..., seed=..., max_agent_steps=...) for bounded episodes. The policy is a callable from the current observation to one action index. It is never called during scramble construction. The returned result records cumulative reward, agent-only step count, final observation, termination/truncation, and success. A zero-step budget is valid and immediately truncates an unsolved starting state. The runner does not own or close the environment.
+Use `EpisodeRunner(env).run(policy, depth=..., seed=..., max_agent_steps=...)` for bounded episodes. The policy is a callable from the current observation to one action index. It is never called during scramble construction. The returned result records cumulative reward, agent-only step count, final observation, termination/truncation, and success. A zero-step budget is valid and immediately truncates an unsolved starting state. The runner does not own or close the environment.
 
 ## Random-policy baselines
 
@@ -64,4 +64,4 @@ Keep training, validation, and final evaluation states separate. Report solve su
 
 ## Current limitations
 
-V1 and V2 are random reference policies; V3 is a one-step model-based heuristic. No learned agent, training loop, or trained model exists yet. The next milestone is the first trainable agent and a reproducible training/evaluation loop. The upstream reward is sparse (+1 solved, otherwise 0). Any reward shaping must be documented and checked for solution-information leakage.
+This milestone establishes reproducible state generation and safe episode initialization only. It does not add or train an agent. V1 and V2 are random reference policies; V3 is a one-step model-based heuristic. The upstream reward is sparse (+1 solved, otherwise 0). Any future reward shaping must be documented and checked for solution-information leakage.

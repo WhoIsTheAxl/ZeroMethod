@@ -66,6 +66,10 @@ jobs:
         env:
           PYTHONPATH: third_party/GymRubiksCube
         run: python -m unittest discover -s tests -p "test_environment.py" -v
+      - name: Run seeded episode initialization integration tests
+        env:
+          PYTHONPATH: third_party/GymRubiksCube
+        run: python -m unittest discover -s tests -p "test_episode_integration.py" -v
       - name: Smoke-test random baseline against upstream environment
         env:
           PYTHONPATH: third_party/GymRubiksCube

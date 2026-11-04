@@ -37,11 +37,35 @@ def _normalize_state(state: Iterable[int]) -> Tuple[int, ...]:
     return values
 
 
+def _is_solved_observation(state: Sequence[int]) -> bool:
+    """Match GymRubiksCube's solved predicate without importing NumPy."""
+    return all(
+        len(set(state[offset:offset + 9])) == 1
+        for offset in range(0, 54, 9)
+    )
+
+
+def _draw_random_walk_actions(rng, depth, action_count, inverse_actions):
+    """Draw one private walk, excluding immediate inverse pairs."""
+    actions = []
+    previous_action = None
+    for _ in range(depth):
+        choices = list(range(action_count))
+        if previous_action is not None:
+            choices.remove(int(inverse_actions[previous_action]))
+        action = rng.choice(choices)
+        actions.append(action)
+        previous_action = action
+    return tuple(actions)
+
+
 class RandomWalkStateGenerator:
     """Generate cube observations by applying seeded legal action walks.
 
     Only the resulting observation is returned. The action sequence remains
     internal to the generator and is never attached to the generated state.
+    Candidate walks that reach a solved state before their final action are
+    discarded, matching the upstream environment's terminal-state behavior.
     """
 
     def __init__(
@@ -86,16 +110,21 @@ class RandomWalkStateGenerator:
         if depth < 0:
             raise ValueError("depth must not be negative")
 
-        state = self._solved_state
-        previous_action = None
+        # Upstream marks a solved state terminal. Reject a candidate if it
+        # reaches solved before its final requested move; otherwise continuing
+        # that walk would require stepping an already-terminated environment.
+        for _ in range(10_000):
+            actions = _draw_random_walk_actions(
+                self._rng, depth, self.action_count, self._inverse_actions
+            )
+            state = self._solved_state
+            retry = False
+            for position, action in enumerate(actions):
+                state = _normalize_state(self._transform(state, action))
+                if position < depth - 1 and _is_solved_observation(state):
+                    retry = True
+                    break
+            if not retry:
+                return state
 
-        for _ in range(depth):
-            choices = list(range(self.action_count))
-            if previous_action is not None:
-                inverse = self._inverse_actions[previous_action]
-                choices.remove(inverse)
-            action = self._rng.choice(choices)
-            state = _normalize_state(self._transform(state, action))
-            previous_action = action
-
-        return state
+        raise RuntimeError("could not generate a non-terminal random walk prefix")
