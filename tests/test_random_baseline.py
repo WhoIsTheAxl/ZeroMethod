@@ -19,12 +19,12 @@ class FakeEnvironment:
         self.action_space = ActionSpace()
         self.max_steps = None
         self.state = SOLVED
-        self.solved = False
+        self.solved = True
         self.actions = []
 
     def reset(self):
         self.state = SOLVED
-        self.solved = False
+        self.solved = True
         self.actions = []
         return self.state
 
@@ -32,6 +32,7 @@ class FakeEnvironment:
         self.actions.append(action)
         # A deliberately simple non-solving transition for deterministic tests.
         self.state = self.state[1:] + self.state[:1]
+        self.solved = False
         return self.state, 0.0, False, {}
 
     def isSolved(self):

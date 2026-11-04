@@ -16,6 +16,8 @@ The pinned submodule revision is `e6ac42990db6a9dcceebe2ee91627f70da71deac`. Its
 
 That revision exposes no documented public `set_state`, `set_state_from_observation`, or equivalent arbitrary-state injection method. Although `color_vector` is an attribute, assigning it directly would bypass the environment's transition bookkeeping and could desynchronize terminal and rendering state. ZeroMethod therefore does not mutate it. The supported boundary is reset plus real step calls.
 
+If direct state loading becomes necessary, the recommended next step is to request an upstream public state-loading API that validates the 54-sticker observation and synchronizes the cube state, terminal flag, step counter, and rendering representation. ZeroMethod can then wrap that supported API and add an upstream integration test. Until such an API exists, replaying legal actions is the safe boundary.
+
 ## Reproducible episode initialization
 
 `make_environment(max_steps=None)` creates a solved-start environment by setting upstream `scramble_params=0`. `initialize_episode(env, depth, seed)` then:

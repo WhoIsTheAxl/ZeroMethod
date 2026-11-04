@@ -20,15 +20,16 @@ class FakeEnvironment:
         self.action_space = ActionSpace()
         self.max_steps = None
         self.state = SOLVED
-        self.solved = False
+        self.solved = True
 
     def reset(self):
         self.state = SOLVED
-        self.solved = False
+        self.solved = True
         return self.state
 
     def step(self, action):
         self.state = self.state[1:] + self.state[:1]
+        self.solved = False
         return self.state, 0.0, False, {}
 
     def isSolved(self):
